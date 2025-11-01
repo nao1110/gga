@@ -146,10 +146,13 @@ $completed_sessions = array_slice($completed_sessions, 0, 3);
                 </div>
               </div>
               <div class="reservation-actions">
-                <button class="btn-success btn-small" onclick="approveReservation(<?php echo h($reservation['id']); ?>)">
-                  <i data-lucide="check"></i>
-                  承認
-                </button>
+                <form action="../../controller/trainer/reserve_approve.php" method="POST" style="display: inline;">
+                  <input type="hidden" name="reserve_id" value="<?php echo h($reservation['id']); ?>">
+                  <button type="submit" class="btn-success btn-small" onclick="return confirm('この予約を承認しますか？');">
+                    <i data-lucide="check"></i>
+                    承認
+                  </button>
+                </form>
               </div>
             </div>
             <?php endforeach; ?>
@@ -263,15 +266,6 @@ $completed_sessions = array_slice($completed_sessions, 0, 3);
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>
     lucide.createIcons();
-
-    // 予約承認
-    function approveReservation(id) {
-      if (confirm('この予約を承認しますか？')) {
-        // 実際はAjaxでサーバーに送信
-        alert('予約ID ' + id + ' を承認しました。');
-        location.reload();
-      }
-    }
 
     // URLコピー
     function copyToClipboard(text) {

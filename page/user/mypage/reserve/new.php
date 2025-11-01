@@ -1,3 +1,49 @@
+<?php
+// タイムゾーンを日本時間（JST）に設定
+date_default_timezone_set('Asia/Tokyo');
+
+// 認証チェック
+require_once __DIR__ . '/../../../../lib/validation.php';
+require_once __DIR__ . '/../../../../lib/auth.php';
+require_once __DIR__ . '/../../../../lib/helpers.php';
+require_once __DIR__ . '/../../../../lib/database.php';
+requireLogin('user');
+
+// 現在のユーザー情報取得
+$current_user = getCurrentUser();
+$user_id = $current_user['id'];
+$user_name = $current_user['name'];
+
+// エラーメッセージ・成功メッセージ取得
+$error = getSessionMessage('error');
+$errors = getSessionMessage('errors');
+$success = getSessionMessage('success');
+$old_trainer_id = getSessionMessage('old_trainer_id');
+$old_persona_id = getSessionMessage('old_persona_id');
+$old_meeting_date = getSessionMessage('old_meeting_date');
+
+// データベース接続
+$db = getDBConnection();
+
+// トレーナー一覧取得
+$stmt = $db->prepare("
+    SELECT id, name, email
+    FROM trainers
+    WHERE is_active = 1
+    ORDER BY name ASC
+");
+$stmt->execute();
+$trainers = $stmt->fetchAll();
+
+// ペルソナ一覧取得
+$stmt = $db->prepare("
+    SELECT id, persona_name, age, job
+    FROM personas
+    ORDER BY id ASC
+");
+$stmt->execute();
+$personas = $stmt->fetchAll();
+?>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -57,18 +103,40 @@
       <section class="form-section fade-in">
         <article class="form-card reservation-card">
           
-          <form id="reservationForm" action="reserve_process.php" method="POST">
+          <?php if ($success): ?>
+            <div class="alert alert-success">
+              <?= h($success) ?>
+            </div>
+          <?php endif; ?>
+
+          <?php if ($error): ?>
+            <div class="alert alert-error">
+              <?= h($error) ?>
+            </div>
+          <?php endif; ?>
+
+          <?php if ($errors): ?>
+            <div class="alert alert-error">
+              <ul style="margin: 0; padding-left: 1.25rem;">
+                <?php foreach ($errors as $err): ?>
+                  <li><?= h($err) ?></li>
+                <?php endforeach; ?>
+              </ul>
+            </div>
+          <?php endif; ?>
+
+          <form id="reservationForm" action="../../../../controller/user/reserve_create.php" method="POST">
             
             <!-- ステップインジケーター -->
             <div class="step-indicator">
               <div class="step active" data-step="1">
                 <div class="step-circle">1</div>
-                <div class="step-label">日付選択</div>
+                <div class="step-label">日付</div>
               </div>
               <div class="step-line"></div>
               <div class="step" data-step="2">
                 <div class="step-circle">2</div>
-                <div class="step-label">時間選択</div>
+                <div class="step-label">時間</div>
               </div>
               <div class="step-line"></div>
               <div class="step" data-step="3">
@@ -150,18 +218,18 @@
               </div>
             </div>
 
-            <!-- ステップ3: 確認 -->
+            <!-- ステップ3: 最終確認 -->
             <div class="form-step" id="step3">
               <h3 class="step-title">
                 <i data-lucide="check-circle"></i>
                 予約内容の確認
               </h3>
               
-              <div class="confirmation-card">
+              <div class="confirmation-section">
                 <div class="confirmation-item">
                   <div class="confirmation-label">
                     <i data-lucide="calendar"></i>
-                    予約日
+                    日付
                   </div>
                   <div class="confirmation-value" id="confirmDate">-</div>
                 </div>
@@ -169,33 +237,20 @@
                 <div class="confirmation-item">
                   <div class="confirmation-label">
                     <i data-lucide="clock"></i>
-                    予約時間
+                    時間
                   </div>
                   <div class="confirmation-value" id="confirmTime">-</div>
                 </div>
-                
-                <div class="confirmation-item">
-                  <div class="confirmation-label">
-                    <i data-lucide="timer"></i>
-                    練習時間
-                  </div>
-                  <div class="confirmation-value">60分</div>
-                </div>
               </div>
 
-              <div class="confirmation-note">
-                <i data-lucide="info"></i>
-                <p>予約リクエストを送信します。キャリアコンサルタントが確定すると、メールでお知らせします。</p>
-              </div>
-              
               <div class="form-actions">
                 <button type="button" class="btn-secondary" id="backToTime">
                   <i data-lucide="arrow-left"></i>
                   戻る
                 </button>
                 <button type="submit" class="btn-primary btn-large">
-                  <i data-lucide="send"></i>
-                  予約リクエストを送信
+                  予約を確定する
+                  <i data-lucide="check"></i>
                 </button>
               </div>
             </div>
@@ -249,7 +304,11 @@
         const dayElement = document.createElement('div');
         dayElement.className = 'calendar-day';
         dayElement.textContent = day;
-        dayElement.dataset.date = dateObj.toISOString().split('T')[0];
+        // タイムゾーン対応：YYYY-MM-DD形式を直接生成
+        const yyyy = year;
+        const mm = String(month + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        dayElement.dataset.date = `${yyyy}-${mm}-${dd}`;
         
         // 過去の日付は選択不可
         if (dateObj < today) {
@@ -379,14 +438,6 @@
 
     document.getElementById('backToTime').addEventListener('click', function() {
       goToStep(2);
-    });
-
-    document.getElementById('reservationForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      // 実際の実装ではここでサーバーに送信
-      alert('予約リクエストを送信しました！\nマイページに戻ります。');
-      window.location.href = '../../mypage.php';
     });
 
     // 初期化

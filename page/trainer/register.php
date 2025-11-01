@@ -1,3 +1,16 @@
+<?php
+// 共通処理読み込み
+require_once __DIR__ . '/../../lib/validation.php';
+require_once __DIR__ . '/../../lib/helpers.php';
+session_start();
+
+// エラーメッセージ・成功メッセージ取得
+$error = getSessionMessage('error');
+$errors = getSessionMessage('errors');
+$success = getSessionMessage('success');
+$old_name = getSessionMessage('old_name');
+$old_email = getSessionMessage('old_email');
+?>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -38,7 +51,29 @@
             <p class="form-subtitle">国家資格キャリアコンサルタント</p>
           </div>
 
-          <form action="register_process.php" method="POST" class="register-form">
+          <?php if ($success): ?>
+            <div class="alert alert-success">
+              <?= h($success) ?>
+            </div>
+          <?php endif; ?>
+
+          <?php if ($error): ?>
+            <div class="alert alert-error">
+              <?= h($error) ?>
+            </div>
+          <?php endif; ?>
+
+          <?php if ($errors): ?>
+            <div class="alert alert-error">
+              <ul style="margin: 0; padding-left: 1.25rem;">
+                <?php foreach ($errors as $err): ?>
+                  <li><?= h($err) ?></li>
+                <?php endforeach; ?>
+              </ul>
+            </div>
+          <?php endif; ?>
+
+          <form action="../../controller/trainer/register_process.php" method="POST" class="register-form">
             
             <!-- 名前 -->
             <div class="form-group">
@@ -50,6 +85,7 @@
                 id="name" 
                 name="name" 
                 placeholder="山田 花子" 
+                value="<?= h($old_name ?? '') ?>"
                 required
                 autocomplete="name"
               >
@@ -65,37 +101,11 @@
                 id="email" 
                 name="email" 
                 placeholder="example@email.com" 
+                value="<?= h($old_email ?? '') ?>"
                 required
                 autocomplete="email"
               >
               <small class="form-help">ログイン時に使用します</small>
-            </div>
-
-            <!-- 専門分野 -->
-            <div class="form-group">
-              <label for="specialty">
-                専門分野
-              </label>
-              <input 
-                type="text" 
-                id="specialty" 
-                name="specialty" 
-                placeholder="例: 企業内キャリア形成、転職支援"
-              >
-              <small class="form-help">得意な分野があればご記入ください</small>
-            </div>
-
-            <!-- 自己紹介 -->
-            <div class="form-group">
-              <label for="bio">
-                自己紹介
-              </label>
-              <textarea 
-                id="bio" 
-                name="bio" 
-                rows="4"
-                placeholder="経験や実績、受験者へのメッセージなどをご記入ください"
-              ></textarea>
             </div>
 
             <!-- パスワード -->

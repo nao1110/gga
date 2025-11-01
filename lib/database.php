@@ -26,6 +26,10 @@ function getDBConnection() {
         ];
         
         $pdo = new PDO($dsn, $username, $password, $options);
+        
+        // MySQLのタイムゾーンを日本時間（JST）に設定
+        $pdo->exec("SET time_zone = '+09:00'");
+        
         return $pdo;
         
     } catch (PDOException $e) {

@@ -92,15 +92,13 @@
             </div>
           </article>
 
-          <!-- キャリア相談者 -->
-          <article class="card login-card hover-lift">
+          <!-- キャリア相談者（準備中） -->
+          <article class="card login-card hover-lift" style="opacity: 0.6;">
             <div class="card-icon">
               <i data-lucide="message-circle"></i>
             </div>
             <h3>キャリア<br>相談者</h3>
-            <a href="login_client.php" class="btn-primary">
-              LOGIN
-            </a>
+            <p style="font-size: 0.875rem; color: var(--muted-color); margin-top: 0.5rem;">準備中</p>
           </article>
 
         </div>
