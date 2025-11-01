@@ -82,9 +82,14 @@
               <i data-lucide="book-open"></i>
             </div>
             <h3>キャリアコンサルタント<br>受験者</h3>
-            <a href="user/login.php" class="btn-primary">
-              LOGIN
-            </a>
+            <div style="display: flex; gap: var(--spacing-sm); width: 100%;">
+              <a href="user/register.php" class="btn-secondary" style="flex: 1;">
+                新規登録
+              </a>
+              <a href="user/login.php" class="btn-primary" style="flex: 1;">
+                ログイン
+              </a>
+            </div>
           </article>
 
           <!-- キャリア相談者 -->

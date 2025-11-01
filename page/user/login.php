@@ -1,3 +1,15 @@
+<?php
+// 共通処理読み込み
+require_once __DIR__ . '/../../lib/validation.php';
+require_once __DIR__ . '/../../lib/helpers.php';
+session_start();
+
+// エラーメッセージ・成功メッセージ取得
+$error = getSessionMessage('error');
+$errors = getSessionMessage('errors');
+$success = getSessionMessage('success');
+$old_email = getSessionMessage('old_email');
+?>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -38,7 +50,29 @@
             <p class="form-subtitle">キャリアコンサルタント受験者</p>
           </div>
 
-          <form action="login_process.php" method="POST" class="register-form">
+          <?php if ($success): ?>
+            <div class="alert alert-success">
+              <?= h($success) ?>
+            </div>
+          <?php endif; ?>
+
+          <?php if ($error): ?>
+            <div class="alert alert-error">
+              <?= h($error) ?>
+            </div>
+          <?php endif; ?>
+
+          <?php if ($errors): ?>
+            <div class="alert alert-error">
+              <ul style="margin: 0; padding-left: 1.25rem;">
+                <?php foreach ($errors as $err): ?>
+                  <li><?= h($err) ?></li>
+                <?php endforeach; ?>
+              </ul>
+            </div>
+          <?php endif; ?>
+
+          <form action="../../controller/user/login_process.php" method="POST" class="register-form">
             
             <!-- メールアドレス -->
             <div class="form-group">
@@ -50,6 +84,7 @@
                 id="email" 
                 name="email" 
                 placeholder="example@email.com" 
+                value="<?= h($old_email ?? '') ?>"
                 required
                 autocomplete="email"
               >

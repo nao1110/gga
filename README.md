@@ -46,7 +46,17 @@ gga/
 │   └── css/
 │       ├── variables.css    # CSS変数定義
 │       └── custom.css        # カスタムスタイル
-├── page/
+├── controller/              # 🆕 処理制御（CRUDの表示以外）
+│   ├── user/                # 受験者用コントローラー
+│   └── trainer/             # トレーナー用コントローラー
+├── lib/                     # 🆕 共通処理（DB接続など）
+│   └── database.php         # データベース接続処理
+├── database/                # データベース関連ファイル
+│   ├── setup.sql            # テーブル作成SQL
+│   ├── dummy_data.sql       # ダミーデータ投入SQL
+│   ├── generate_password.php # パスワードハッシュ生成ツール
+│   └── README.md            # DB設計ドキュメント
+├── page/                    # 表示専用（View層）
 │   ├── index.php            # トップページ
 │   ├── user/                # 受験者向けページ
 │   │   ├── register.php
@@ -68,6 +78,14 @@ gga/
 │                   └── input.php
 └── README.md
 ```
+
+### フォルダの役割
+
+- **assets/**: 静的ファイル（CSS、画像など）
+- **controller/**: ビジネスロジック・CRUD処理（Create/Update/Delete）
+- **lib/**: 共通処理・ユーティリティ（DB接続、セッション管理、バリデーションなど）
+- **database/**: データベース設計・セットアップファイル
+- **page/**: 表示専用（View層）- 処理ロジックは含めない
 
 ## セットアップ
 
@@ -110,9 +128,31 @@ http://localhost/gs_code/gga/page/index.php
 
 - ✅ フロントエンド UI実装完了
 - ✅ ダミーデータでの動作確認済み
-- 🚧 バックエンド処理（PHP）実装予定
-- 🚧 データベース設計・実装予定
+- ✅ データベース設計完了（MySQL）
+- ✅ MVC的フォルダ構造確立
+- 🚧 バックエンド処理（PHP）実装中
 - 🚧 認証システム実装予定
+
+## アーキテクチャ
+
+### 設計方針
+- **MVC的な分離**: View（page/）、Controller（controller/）、Model（lib/）
+- **処理と表示の分離**: page/フォルダには表示ロジックのみ、処理はcontroller/へ
+- **共通処理の集約**: DB接続やセッション管理はlib/に集約
+- **セキュリティ**: パスワードハッシュ化、SQLインジェクション対策、XSS対策
+
+### データフロー
+```
+1. ユーザーアクション (page/)
+   ↓
+2. コントローラー処理 (controller/)
+   ↓
+3. 共通処理・DB操作 (lib/)
+   ↓
+4. データ取得・保存
+   ↓
+5. 表示ページへリダイレクト (page/)
+```
 
 ## 今後の予定
 

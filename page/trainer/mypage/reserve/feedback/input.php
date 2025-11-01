@@ -1,9 +1,22 @@
 <?php
-// セッション開始（実際の実装では認証チェックを行う）
-session_start();
+// 認証チェック
+require_once __DIR__ . '/../../../../../lib/validation.php';
+require_once __DIR__ . '/../../../../../lib/auth.php';
+require_once __DIR__ . '/../../../../../lib/helpers.php';
+require_once __DIR__ . '/../../../../../lib/database.php';
+requireLogin('trainer');
+
+// 現在のユーザー情報取得
+$current_user = getCurrentUser();
+$trainer_name = $current_user['name'];
 
 // 予約IDを取得
 $reservation_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+
+if (!$reservation_id) {
+    redirect('/page/trainer/mypage.php');
+    exit;
+}
 
 // 曜日を取得する関数
 function getJapaneseWeekday($date) {
@@ -11,48 +24,55 @@ function getJapaneseWeekday($date) {
     return $weekdays[date('w', strtotime($date))];
 }
 
-// ダミーデータ（実際はデータベースから取得）
-$trainer_name = "田中 美咲";
+// データベース接続
+$pdo = getDBConnection();
 
-// 予約詳細データ
-$reservation = [
-    'id' => $reservation_id,
-    'student_name' => '山田 太郎',
-    'practice_number' => 3,
-    'date' => '2025-11-08',
-    'time' => '15:00-16:00',
-    'status' => 'confirmed', // completed の場合は既存フィードバック表示
-    'meeting_url' => 'https://meet.google.com/abc-defg-hij',
-    
-    // 既存のフィードバック（編集モード用）
-    'feedback' => null // 新規入力の場合はnull、編集の場合はデータが入る
-];
+// 予約詳細とフィードバック情報を取得
+$stmt = $pdo->prepare("
+    SELECT 
+        r.id,
+        r.meeting_date,
+        r.meeting_url,
+        r.status,
+        u.name as user_name,
+        u.email as user_email,
+        p.persona_name,
+        f.id as feedback_id,
+        f.comment as feedback_comment,
+        f.created_at as feedback_date
+    FROM reserves r
+    LEFT JOIN users u ON r.user_id = u.id
+    LEFT JOIN personas p ON r.persona_id = p.id
+    LEFT JOIN feedbacks f ON r.id = f.reserve_id
+    WHERE r.id = ? AND r.trainer_id = ?
+");
+$stmt->execute([$reservation_id, $current_user['id']]);
+$reservation = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// 編集モードの場合の既存フィードバック
-if ($reservation['status'] === 'completed' && $reservation_id === 5) {
-    $reservation['feedback'] = [
-        'strengths' => [
-            '傾聴姿勢が非常に良好で、相手の話をしっかり受け止めている',
-            'うなずきやあいづちのタイミングが適切',
-            '共感的な言葉かけができている'
-        ],
-        'improvements' => [
-            '質問の組み立てをもう少し整理すると良い',
-            'クライアントの本質的な課題に迫る深い質問を意識する',
-            '時間配分に注意（前半に時間を使いすぎている）'
-        ],
-        'next_goals' => [
-            'キャリアの方向性を引き出す質問力の向上',
-            '具体的なアクションプランへの導き方',
-            '限られた時間での効果的な面談構成'
-        ],
-        'comment' => '全体として良い面談ができていました。特に傾聴姿勢は素晴らしく、クライアントも安心して話せる雰囲気を作れていました。次回は質問の構成と時間配分を意識して練習してみましょう。確実に成長しています！',
-        'submitted_at' => '2025-10-25 16:30:00'
-    ];
-    $reservation['status'] = 'completed';
+// 予約が存在しない、または自分の予約でない場合はリダイレクト
+if (!$reservation) {
+    redirect('/page/trainer/mypage.php');
+    exit;
 }
 
-$is_edit_mode = ($reservation['feedback'] !== null);
+// フィードバックデータの取得と解析
+$is_edit_mode = false;
+$feedback_data = null;
+
+if ($reservation['feedback_id'] && $reservation['feedback_comment']) {
+    $is_edit_mode = true;
+    $feedback_json = json_decode($reservation['feedback_comment'], true);
+    
+    if ($feedback_json) {
+        $feedback_data = [
+            'strengths' => $feedback_json['strengths'] ?? [],
+            'improvements' => $feedback_json['improvements'] ?? [],
+            'next_goals' => $feedback_json['next_goals'] ?? [],
+            'comment' => $feedback_json['overall_comment'] ?? $feedback_json['comment'] ?? '',
+            'submitted_at' => $reservation['feedback_date']
+        ];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -100,17 +120,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                   受験者
                 </div>
                 <div class="info-value">
-                  <?php echo htmlspecialchars($reservation['student_name']); ?> さん
-                </div>
-              </div>
-
-              <div class="info-item">
-                <div class="info-label">
-                  <i data-lucide="hash"></i>
-                  練習回数
-                </div>
-                <div class="info-value">
-                  練習<?php echo $reservation['practice_number']; ?>回目
+                  <?php echo h($reservation['user_name']); ?> さん
                 </div>
               </div>
 
@@ -120,7 +130,17 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                   実施日時
                 </div>
                 <div class="info-value">
-                  <?php echo date('Y年m月d日', strtotime($reservation['date'])); ?>（<?php echo getJapaneseWeekday($reservation['date']); ?>） <?php echo $reservation['time']; ?>
+                  <?php echo h(date('Y年m月d日', strtotime($reservation['meeting_date']))); ?>（<?php echo getJapaneseWeekday($reservation['meeting_date']); ?>） <?php echo h(date('H:i', strtotime($reservation['meeting_date']))); ?>
+                </div>
+              </div>
+
+              <div class="info-item">
+                <div class="info-label">
+                  <i data-lucide="briefcase"></i>
+                  ペルソナ
+                </div>
+                <div class="info-value">
+                  <?php echo h($reservation['persona_name']); ?>
                 </div>
               </div>
             </div>
@@ -164,7 +184,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                     rows="2" 
                     required
                     placeholder="例：傾聴姿勢が非常に良好で、相手の話をしっかり受け止めている"
-                  ><?php echo $is_edit_mode ? htmlspecialchars($reservation['feedback']['strengths'][0] ?? '') : ''; ?></textarea>
+                  ><?php echo $is_edit_mode ? h($feedback_data['strengths'][0] ?? '') : ''; ?></textarea>
                 </div>
 
                 <div class="form-group">
@@ -175,7 +195,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                     rows="2" 
                     required
                     placeholder="例：うなずきやあいづちのタイミングが適切"
-                  ><?php echo $is_edit_mode ? htmlspecialchars($reservation['feedback']['strengths'][1] ?? '') : ''; ?></textarea>
+                  ><?php echo $is_edit_mode ? h($feedback_data['strengths'][1] ?? '') : ''; ?></textarea>
                 </div>
 
                 <div class="form-group">
@@ -186,7 +206,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                     rows="2" 
                     required
                     placeholder="例：共感的な言葉かけができている"
-                  ><?php echo $is_edit_mode ? htmlspecialchars($reservation['feedback']['strengths'][2] ?? '') : ''; ?></textarea>
+                  ><?php echo $is_edit_mode ? h($feedback_data['strengths'][2] ?? '') : ''; ?></textarea>
                 </div>
               </div>
 
@@ -206,7 +226,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                     rows="2" 
                     required
                     placeholder="例：質問の組み立てをもう少し整理すると良い"
-                  ><?php echo $is_edit_mode ? htmlspecialchars($reservation['feedback']['improvements'][0] ?? '') : ''; ?></textarea>
+                  ><?php echo $is_edit_mode ? h($feedback_data['improvements'][0] ?? '') : ''; ?></textarea>
                 </div>
 
                 <div class="form-group">
@@ -217,7 +237,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                     rows="2" 
                     required
                     placeholder="例：クライアントの本質的な課題に迫る深い質問を意識する"
-                  ><?php echo $is_edit_mode ? htmlspecialchars($reservation['feedback']['improvements'][1] ?? '') : ''; ?></textarea>
+                  ><?php echo $is_edit_mode ? h($feedback_data['improvements'][1] ?? '') : ''; ?></textarea>
                 </div>
 
                 <div class="form-group">
@@ -228,7 +248,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                     rows="2" 
                     required
                     placeholder="例：時間配分に注意（前半に時間を使いすぎている）"
-                  ><?php echo $is_edit_mode ? htmlspecialchars($reservation['feedback']['improvements'][2] ?? '') : ''; ?></textarea>
+                  ><?php echo $is_edit_mode ? h($feedback_data['improvements'][2] ?? '') : ''; ?></textarea>
                 </div>
               </div>
 
@@ -248,7 +268,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                     rows="2" 
                     required
                     placeholder="例：キャリアの方向性を引き出す質問力の向上"
-                  ><?php echo $is_edit_mode ? htmlspecialchars($reservation['feedback']['next_goals'][0] ?? '') : ''; ?></textarea>
+                  ><?php echo $is_edit_mode ? h($feedback_data['next_goals'][0] ?? '') : ''; ?></textarea>
                 </div>
 
                 <div class="form-group">
@@ -259,7 +279,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                     rows="2" 
                     required
                     placeholder="例：具体的なアクションプランへの導き方"
-                  ><?php echo $is_edit_mode ? htmlspecialchars($reservation['feedback']['next_goals'][1] ?? '') : ''; ?></textarea>
+                  ><?php echo $is_edit_mode ? h($feedback_data['next_goals'][1] ?? '') : ''; ?></textarea>
                 </div>
 
                 <div class="form-group">
@@ -270,7 +290,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                     rows="2" 
                     required
                     placeholder="例：限られた時間での効果的な面談構成"
-                  ><?php echo $is_edit_mode ? htmlspecialchars($reservation['feedback']['next_goals'][2] ?? '') : ''; ?></textarea>
+                  ><?php echo $is_edit_mode ? h($feedback_data['next_goals'][2] ?? '') : ''; ?></textarea>
                 </div>
               </div>
 
@@ -290,7 +310,7 @@ $is_edit_mode = ($reservation['feedback'] !== null);
                     rows="6" 
                     required
                     placeholder="例：全体として良い面談ができていました。特に傾聴姿勢は素晴らしく、クライアントも安心して話せる雰囲気を作れていました。次回は質問の構成と時間配分を意識して練習してみましょう。確実に成長しています！"
-                  ><?php echo $is_edit_mode ? htmlspecialchars($reservation['feedback']['comment'] ?? '') : ''; ?></textarea>
+                  ><?php echo $is_edit_mode ? h($feedback_data['comment'] ?? '') : ''; ?></textarea>
                 </div>
               </div>
 

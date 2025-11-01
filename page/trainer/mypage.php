@@ -1,6 +1,14 @@
 <?php
-// セッション開始（実際の実装では認証チェックを行う）
-session_start();
+// 認証チェック
+require_once __DIR__ . '/../../lib/validation.php';
+require_once __DIR__ . '/../../lib/auth.php';
+require_once __DIR__ . '/../../lib/helpers.php';
+require_once __DIR__ . '/../../lib/database.php';
+requireLogin('trainer');
+
+// 現在のユーザー情報取得
+$current_user = getCurrentUser();
+$success = getSessionMessage('success');
 
 // 曜日を取得する関数
 function getJapaneseWeekday($date) {
@@ -8,89 +16,55 @@ function getJapaneseWeekday($date) {
     return $weekdays[date('w', strtotime($date))];
 }
 
-// ダミーデータ（実際はデータベースから取得）
-$trainer_name = "田中 美咲";
-$trainer_specialty = "企業内キャリア形成、転職支援";
+// データベース接続
+$pdo = getDBConnection();
 
-// 予約承認待ちリスト
-$pending_reservations = [
-    [
-        'id' => 1,
-        'student_name' => '山田 太郎',
-        'practice_number' => 4,
-        'requested_date' => '2025-11-15',
-        'requested_time' => '14:00-15:00',
-        'request_date' => '2025-11-01',
-        'status' => 'pending'
-    ],
-    [
-        'id' => 2,
-        'student_name' => '佐藤 花子',
-        'practice_number' => 2,
-        'requested_date' => '2025-11-18',
-        'requested_time' => '10:00-11:00',
-        'request_date' => '2025-11-01',
-        'status' => 'pending'
-    ]
-];
+// トレーナー情報の取得
+$trainer_name = $current_user['name'];
+$trainer_specialty = $current_user['specialty'] ?? "キャリア形成支援";
 
-// 承認済み・実施予定の予約
-$confirmed_reservations = [
-    [
-        'id' => 3,
-        'student_name' => '鈴木 一郎',
-        'practice_number' => 3,
-        'date' => '2025-11-08',
-        'time' => '15:00-16:00',
-        'meeting_url' => 'https://meet.google.com/abc-defg-hij',
-        'status' => 'confirmed',
-        'feedback_submitted' => false
-    ],
-    [
-        'id' => 4,
-        'student_name' => '高橋 さくら',
-        'practice_number' => 1,
-        'date' => '2025-11-12',
-        'time' => '13:00-14:00',
-        'meeting_url' => 'https://meet.google.com/xyz-abcd-efg',
-        'status' => 'confirmed',
-        'feedback_submitted' => false
-    ]
-];
+// 予約データを取得（承認待ち・確定済み・完了済み）
+$stmt = $pdo->prepare("
+    SELECT 
+        r.id,
+        r.user_id,
+        r.meeting_date,
+        r.meeting_url,
+        r.status,
+        r.created_at,
+        u.name as user_name,
+        u.email as user_email,
+        p.id as persona_id,
+        p.persona_name as persona_name,
+        f.id as feedback_id,
+        f.created_at as feedback_date
+    FROM reserves r
+    LEFT JOIN users u ON r.user_id = u.id
+    LEFT JOIN personas p ON r.persona_id = p.id
+    LEFT JOIN feedbacks f ON r.id = f.reserve_id
+    WHERE r.trainer_id = ?
+    ORDER BY r.meeting_date ASC
+");
+$stmt->execute([$current_user['id']]);
+$all_reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// 完了済み（フィードバック入力済み）
-$completed_sessions = [
-    [
-        'id' => 5,
-        'student_name' => '伊藤 誠',
-        'practice_number' => 5,
-        'date' => '2025-10-25',
-        'time' => '10:00-11:00',
-        'status' => 'completed',
-        'feedback_submitted' => true,
-        'feedback_date' => '2025-10-25'
-    ],
-    [
-        'id' => 6,
-        'student_name' => '山田 太郎',
-        'practice_number' => 3,
-        'date' => '2025-10-20',
-        'time' => '14:00-15:00',
-        'status' => 'completed',
-        'feedback_submitted' => true,
-        'feedback_date' => '2025-10-20'
-    ],
-    [
-        'id' => 7,
-        'student_name' => '佐藤 花子',
-        'practice_number' => 1,
-        'date' => '2025-10-15',
-        'time' => '16:00-17:00',
-        'status' => 'completed',
-        'feedback_submitted' => true,
-        'feedback_date' => '2025-10-15'
-    ]
-];
+// ステータスごとに分類
+$pending_reservations = [];
+$confirmed_reservations = [];
+$completed_sessions = [];
+
+foreach ($all_reservations as $reservation) {
+    if ($reservation['status'] === 'pending') {
+        $pending_reservations[] = $reservation;
+    } elseif ($reservation['status'] === 'confirmed') {
+        $confirmed_reservations[] = $reservation;
+    } elseif ($reservation['status'] === 'completed') {
+        $completed_sessions[] = $reservation;
+    }
+}
+
+// 完了セッションは最新3件のみ表示
+$completed_sessions = array_slice($completed_sessions, 0, 3);
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -118,15 +92,28 @@ $completed_sessions = [
             <h1 class="logo-primary">CareerTre</h1>
             <p class="hero-tagline">-キャリトレ-</p>
           </div>
-          <div class="header-actions">
+                    <div class="header-actions">
             <span class="user-name">
               <i data-lucide="graduation-cap"></i>
-              <?php echo htmlspecialchars($trainer_name); ?>
+              <?php echo h($trainer_name); ?>
             </span>
-            <a href="../index.php" class="btn-secondary btn-small">
+            <a href="../../controller/logout.php" class="btn-secondary btn-small">
               ログアウト
             </a>
           </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- メインコンテナ -->
+    <main class="mypage-container">
+      <div class="container">
+        
+        <?php if ($success): ?>
+          <div class="alert alert-success fade-in">
+            <?= h($success) ?>
+          </div>
+        <?php endif; ?>
         </div>
       </header>
 
@@ -145,22 +132,21 @@ $completed_sessions = [
             <div class="reservation-item pending-item">
               <div class="reservation-main">
                 <div class="reservation-header">
-                  <span class="practice-badge">練習<?php echo $reservation['practice_number']; ?>回目</span>
-                  <span class="student-name-header"><?php echo htmlspecialchars($reservation['student_name']); ?> さん</span>
+                  <span class="student-name-header"><?php echo h($reservation['user_name']); ?> さん</span>
                 </div>
                 <div class="reservation-info">
                   <div class="info-row">
                     <i data-lucide="calendar"></i>
-                    <span><?php echo date('Y年m月d日', strtotime($reservation['requested_date'])); ?>（<?php echo getJapaneseWeekday($reservation['requested_date']); ?>） <?php echo $reservation['requested_time']; ?></span>
+                    <span><?php echo h(date('Y年m月d日', strtotime($reservation['meeting_date']))); ?>（<?php echo getJapaneseWeekday($reservation['meeting_date']); ?>） <?php echo h(date('H:i', strtotime($reservation['meeting_date']))); ?></span>
                   </div>
                   <div class="info-row">
                     <i data-lucide="clock"></i>
-                    <span class="text-muted">申請日: <?php echo date('m月d日', strtotime($reservation['request_date'])); ?></span>
+                    <span class="text-muted">申請日: <?php echo h(date('m月d日', strtotime($reservation['created_at']))); ?></span>
                   </div>
                 </div>
               </div>
               <div class="reservation-actions">
-                <button class="btn-success btn-small" onclick="approveReservation(<?php echo $reservation['id']; ?>)">
+                <button class="btn-success btn-small" onclick="approveReservation(<?php echo h($reservation['id']); ?>)">
                   <i data-lucide="check"></i>
                   承認
                 </button>
@@ -187,27 +173,28 @@ $completed_sessions = [
             <div class="reservation-item confirmed-item">
               <div class="reservation-main">
                 <div class="reservation-header">
-                  <span class="practice-badge">練習<?php echo $reservation['practice_number']; ?>回目</span>
-                  <span class="student-name-header"><?php echo htmlspecialchars($reservation['student_name']); ?> さん</span>
+                  <span class="student-name-header"><?php echo h($reservation['user_name']); ?> さん</span>
                 </div>
                 <div class="reservation-info">
                   <div class="info-row">
                     <i data-lucide="calendar"></i>
-                    <span><?php echo date('Y年m月d日', strtotime($reservation['date'])); ?>（<?php echo getJapaneseWeekday($reservation['date']); ?>） <?php echo $reservation['time']; ?></span>
+                    <span><?php echo h(date('Y年m月d日', strtotime($reservation['meeting_date']))); ?>（<?php echo getJapaneseWeekday($reservation['meeting_date']); ?>） <?php echo h(date('H:i', strtotime($reservation['meeting_date']))); ?></span>
                   </div>
+                  <?php if ($reservation['meeting_url']): ?>
                   <div class="info-row">
                     <i data-lucide="video"></i>
-                    <a href="<?php echo htmlspecialchars($reservation['meeting_url']); ?>" target="_blank" class="meeting-link">
-                      <?php echo htmlspecialchars($reservation['meeting_url']); ?>
+                    <a href="<?php echo h($reservation['meeting_url']); ?>" target="_blank" class="meeting-link">
+                      <?php echo h($reservation['meeting_url']); ?>
                     </a>
-                    <button class="btn-icon" onclick="copyToClipboard('<?php echo htmlspecialchars($reservation['meeting_url']); ?>')" title="URLをコピー">
+                    <button class="btn-icon" onclick="copyToClipboard('<?php echo h($reservation['meeting_url']); ?>')" title="URLをコピー">
                       <i data-lucide="copy"></i>
                     </button>
                   </div>
+                  <?php endif; ?>
                 </div>
               </div>
               <div class="reservation-actions">
-                <a href="mypage/reserve/feedback/input.php?id=<?php echo $reservation['id']; ?>" class="btn-primary btn-small">
+                <a href="mypage/reserve/feedback/input.php?id=<?php echo h($reservation['id']); ?>" class="btn-primary btn-small">
                   <i data-lucide="file-edit"></i>
                   レポート入力
                 </a>
@@ -234,22 +221,23 @@ $completed_sessions = [
               <div class="reservation-item completed-item">
                 <div class="reservation-main">
                   <div class="reservation-header">
-                    <span class="practice-badge completed">練習<?php echo $session['practice_number']; ?>回目</span>
-                    <span class="student-name-header"><?php echo htmlspecialchars($session['student_name']); ?> さん</span>
+                    <span class="student-name-header"><?php echo h($session['user_name']); ?> さん</span>
                   </div>
                   <div class="reservation-info">
                     <div class="info-row">
                       <i data-lucide="calendar"></i>
-                      <span><?php echo date('Y年m月d日', strtotime($session['date'])); ?>（<?php echo getJapaneseWeekday($session['date']); ?>） <?php echo $session['time']; ?></span>
+                      <span><?php echo h(date('Y年m月d日', strtotime($session['meeting_date']))); ?>（<?php echo getJapaneseWeekday($session['meeting_date']); ?>） <?php echo h(date('H:i', strtotime($session['meeting_date']))); ?></span>
                     </div>
+                    <?php if ($session['feedback_id']): ?>
                     <div class="info-row">
                       <i data-lucide="check-circle"></i>
-                      <span class="text-success">レポート提出済み（<?php echo date('m月d日', strtotime($session['feedback_date'])); ?>）</span>
+                      <span class="text-success">レポート提出済み（<?php echo h(date('m月d日', strtotime($session['feedback_date']))); ?>）</span>
                     </div>
+                    <?php endif; ?>
                   </div>
                 </div>
                 <div class="reservation-actions">
-                  <a href="mypage/reserve/feedback/input.php?id=<?php echo $session['id']; ?>" class="btn-secondary btn-small">
+                  <a href="mypage/reserve/feedback/input.php?id=<?php echo h($session['id']); ?>" class="btn-secondary btn-small">
                     <i data-lucide="eye"></i>
                     レポート確認
                   </a>

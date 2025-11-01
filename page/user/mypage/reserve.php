@@ -1,61 +1,38 @@
 <?php
-// セッション開始（実際の実装では認証チェックを行う）
-session_start();
+// 認証チェック
+require_once __DIR__ . '/../../../lib/validation.php';
+require_once __DIR__ . '/../../../lib/auth.php';
+require_once __DIR__ . '/../../../lib/helpers.php';
+require_once __DIR__ . '/../../../lib/database.php';
+requireLogin('user');
 
-// ダミーデータ（実際はデータベースから取得）
-$user_name = "山田 太郎";
+// 現在のユーザー情報取得
+$current_user = getCurrentUser();
+$user_id = $current_user['id'];
+$user_name = $current_user['name'];
 
-// 予約一覧データ
-$reservations = [
-    [
-        'id' => 1,
-        'date' => '2025-11-15',
-        'time' => '14:00',
-        'end_time' => '15:00',
-        'consultant_name' => '佐藤 花子',
-        'consultant_id' => 101,
-        'status' => 'confirmed', // confirmed, pending, cancelled
-        'meeting_url' => 'https://meet.google.com/abc-defg-hij',
-        'created_at' => '2025-11-01 10:30:00',
-        'confirmed_at' => '2025-11-02 15:20:00'
-    ],
-    [
-        'id' => 2,
-        'date' => '2025-11-22',
-        'time' => '10:00',
-        'end_time' => '11:00',
-        'consultant_name' => '鈴木 一郎',
-        'consultant_id' => 102,
-        'status' => 'confirmed',
-        'meeting_url' => 'https://zoom.us/j/123456789',
-        'created_at' => '2025-11-03 09:15:00',
-        'confirmed_at' => '2025-11-04 11:30:00'
-    ],
-    [
-        'id' => 3,
-        'date' => '2025-11-28',
-        'time' => '16:00',
-        'end_time' => '17:00',
-        'consultant_name' => null,
-        'consultant_id' => null,
-        'status' => 'pending',
-        'meeting_url' => null,
-        'created_at' => '2025-11-01 14:45:00',
-        'confirmed_at' => null
-    ],
-    [
-        'id' => 4,
-        'date' => '2025-12-05',
-        'time' => '13:00',
-        'end_time' => '14:00',
-        'consultant_name' => null,
-        'consultant_id' => null,
-        'status' => 'pending',
-        'meeting_url' => null,
-        'created_at' => '2025-11-01 16:20:00',
-        'confirmed_at' => null
-    ]
-];
+// データベース接続
+$db = getDBConnection();
+
+// 予約一覧データ取得（未来の予約のみ、承認待ち・確定済み）
+$stmt = $db->prepare("
+    SELECT 
+        r.id,
+        r.meeting_date,
+        r.status,
+        r.meeting_url,
+        r.created_at,
+        t.name as trainer_name,
+        p.persona_name
+    FROM reserves r
+    LEFT JOIN trainers t ON r.trainer_id = t.id
+    LEFT JOIN personas p ON r.persona_id = p.id
+    WHERE r.user_id = ? 
+    AND r.status IN ('pending', 'confirmed')
+    ORDER BY r.meeting_date ASC
+");
+$stmt->execute([$user_id]);
+$reservations = $stmt->fetchAll();
 
 // ステータス別に分類
 $confirmed_reservations = array_filter($reservations, function($r) {
@@ -158,7 +135,7 @@ $pending_reservations = array_filter($reservations, function($r) {
                     <i data-lucide="calendar"></i>
                     <span class="date-text">
                       <?php 
-                        $date = new DateTime($reservation['date']);
+                        $date = new DateTime($reservation['meeting_date']);
                         echo $date->format('Y年n月j日');
                       ?>
                       （<?php 
@@ -170,7 +147,7 @@ $pending_reservations = array_filter($reservations, function($r) {
                   <div class="datetime-time">
                     <i data-lucide="clock"></i>
                     <span class="time-text">
-                      <?php echo $reservation['time']; ?> - <?php echo $reservation['end_time']; ?>
+                      <?php echo $date->format('H:i'); ?> 〜
                     </span>
                   </div>
                 </div>
@@ -179,7 +156,7 @@ $pending_reservations = array_filter($reservations, function($r) {
                   <i data-lucide="user"></i>
                   <div class="consultant-info">
                     <div class="consultant-label">担当コンサルタント</div>
-                    <div class="consultant-name"><?php echo htmlspecialchars($reservation['consultant_name']); ?></div>
+                    <div class="consultant-name"><?php echo h($reservation['trainer_name']); ?></div>
                   </div>
                 </div>
 
@@ -191,7 +168,7 @@ $pending_reservations = array_filter($reservations, function($r) {
                       <input 
                         type="text" 
                         class="meeting-url-input" 
-                        value="<?php echo htmlspecialchars($reservation['meeting_url']); ?>" 
+                        value="<?php echo h($reservation['meeting_url']); ?>" 
                         readonly
                         id="url-<?php echo $reservation['id']; ?>"
                       >
@@ -260,7 +237,7 @@ $pending_reservations = array_filter($reservations, function($r) {
                     リクエスト中
                   </span>
                 </div>
-                <div class="reservation-id">ID: <?php echo $reservation['id']; ?></div>
+                <div class="reservation-id">ID: <?php echo h($reservation['id']); ?></div>
               </div>
 
               <div class="reservation-body">
@@ -269,7 +246,7 @@ $pending_reservations = array_filter($reservations, function($r) {
                     <i data-lucide="calendar"></i>
                     <span class="date-text">
                       <?php 
-                        $date = new DateTime($reservation['date']);
+                        $date = new DateTime($reservation['meeting_date']);
                         echo $date->format('Y年n月j日');
                       ?>
                       （<?php 
@@ -281,7 +258,7 @@ $pending_reservations = array_filter($reservations, function($r) {
                   <div class="datetime-time">
                     <i data-lucide="clock"></i>
                     <span class="time-text">
-                      <?php echo $reservation['time']; ?> - <?php echo $reservation['end_time']; ?>
+                      <?php echo h($date->format('H:i')); ?>
                     </span>
                   </div>
                 </div>
@@ -296,15 +273,15 @@ $pending_reservations = array_filter($reservations, function($r) {
                 <div class="reservation-meta">
                   <span class="meta-item">
                     <i data-lucide="send"></i>
-                    申請日時: <?php echo date('n/j H:i', strtotime($reservation['created_at'])); ?>
+                    申請日時: <?php echo h(date('n/j H:i', strtotime($reservation['created_at']))); ?>
                   </span>
                 </div>
                 <div class="reservation-actions">
-                  <a href="reserve/detail.php?id=<?php echo $reservation['id']; ?>" class="btn-action btn-detail">
+                  <a href="reserve/detail.php?id=<?php echo h($reservation['id']); ?>" class="btn-action btn-detail">
                     <i data-lucide="file-text"></i>
                     詳細を見る
                   </a>
-                  <button class="btn-action btn-cancel" onclick="cancelReservation(<?php echo $reservation['id']; ?>)">
+                  <button class="btn-action btn-cancel" onclick="cancelReservation(<?php echo h($reservation['id']); ?>)">
                     <i data-lucide="x-circle"></i>
                     キャンセル
                   </button>
