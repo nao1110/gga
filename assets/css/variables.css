@@ -1,0 +1,65 @@
+/* CareerTre - CSS Variables */
+:root {
+  /* Colors */
+  --primary: #00BCD4;
+  --primary-hover: #0097A7;
+  --primary-light: #B2EBF2;
+  
+  /* Background */
+  --background-gradient: linear-gradient(135deg, 
+    #ffeef8 0%, 
+    #e0f7fa 50%, 
+    #e1f5e1 100%
+  );
+  --background-white: #FFFFFF;
+  --background-light: #F8F9FA;
+  
+  /* Text */
+  --text-primary: #2C3E50;
+  --text-secondary: #7F8C8D;
+  --text-muted: #BDC3C7;
+  
+  /* Semantic Colors */
+  --success: #27AE60;
+  --warning: #F39C12;
+  --error: #E74C3C;
+  --info: #3498DB;
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+  
+  /* Font Sizes */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --font-size-3xl: 2.5rem;
+  
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.16);
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  
+  /* Font Family */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", 
+                 "Hiragino Sans", "Hiragino Kaku Gothic ProN", 
+                 Meiryo, sans-serif;
+}
