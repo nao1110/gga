@@ -1,3 +1,14 @@
+<?php
+// タイムゾーンを日本時間（JST）に設定
+date_default_timezone_set('Asia/Tokyo');
+
+// 共通処理読み込み
+require_once __DIR__ . '/../lib/helpers.php';
+
+// メッセージ取得
+$success = getSessionMessage('success');
+$error = getSessionMessage('error');
+?>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -16,6 +27,19 @@
   <!-- メインコンテナ -->
   <main class="hero-container">
     <div class="container-narrow">
+      
+      <!-- メッセージ表示 -->
+      <?php if ($success): ?>
+        <div class="alert alert-success fade-in" style="margin-top: var(--spacing-lg);">
+          <?= h($success) ?>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($error): ?>
+        <div class="alert alert-error fade-in" style="margin-top: var(--spacing-lg);">
+          <?= h($error) ?>
+        </div>
+      <?php endif; ?>
       
       <!-- ヒーローセクション -->
       <section class="hero-section fade-in">
@@ -92,13 +116,20 @@
             </div>
           </article>
 
-          <!-- キャリア相談者（準備中） -->
-          <article class="card login-card hover-lift" style="opacity: 0.6;">
+          <!-- キャリア相談者 -->
+          <article class="card login-card hover-lift">
             <div class="card-icon">
               <i data-lucide="message-circle"></i>
             </div>
             <h3>キャリア<br>相談者</h3>
-            <p style="font-size: 0.875rem; color: var(--muted-color); margin-top: 0.5rem;">準備中</p>
+            <div style="display: flex; gap: var(--spacing-sm); width: 100%;">
+              <a href="client/register.php" class="btn-secondary" style="flex: 1;">
+                新規登録
+              </a>
+              <a href="client/login.php" class="btn-primary" style="flex: 1;">
+                ログイン
+              </a>
+            </div>
           </article>
 
         </div>

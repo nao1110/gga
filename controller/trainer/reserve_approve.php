@@ -52,11 +52,18 @@ if (!empty($errors)) {
 try {
     $db = getDBConnection();
     
-    // 予約が存在し、自分の予約であることを確認
+    // 予約が存在することを確認（trainer_idがNULLまたは自分のID）
     $stmt = $db->prepare("
-        SELECT id, status 
-        FROM reserves 
-        WHERE id = ? AND trainer_id = ?
+        SELECT r.id, r.status, r.trainer_id, r.user_id, r.persona_id,
+        (
+            SELECT COUNT(*) 
+            FROM reserves r2 
+            WHERE r2.user_id = r.user_id 
+            AND r2.status = 'completed'
+            AND r2.meeting_date < r.meeting_date
+        ) as completed_count
+        FROM reserves r
+        WHERE r.id = ? AND (r.trainer_id IS NULL OR r.trainer_id = ?)
     ");
     $stmt->execute([$reserve_id, $trainer_id]);
     $reserve = $stmt->fetch();
@@ -71,15 +78,24 @@ try {
         redirect('/gs_code/gga/page/trainer/mypage.php');
     }
     
-    // 予約を承認
+    // ペルソナIDを決定（未割り当ての場合）
+    $persona_id = $reserve['persona_id'];
+    if (!$persona_id) {
+        // 完了回数に基づいてペルソナを割り当て（1-5をループ）
+        $persona_id = ($reserve['completed_count'] % 5) + 1;
+    }
+    
+    // 予約を承認（trainer_idとpersona_idも設定）
     $stmt = $db->prepare("
         UPDATE reserves 
-        SET status = 'confirmed', 
+        SET status = 'confirmed',
+            trainer_id = ?,
+            persona_id = ?,
             meeting_url = ?,
             updated_at = NOW()
         WHERE id = ?
     ");
-    $stmt->execute([$meeting_url ?: null, $reserve_id]);
+    $stmt->execute([$trainer_id, $persona_id, $meeting_url ?: null, $reserve_id]);
     
     // 承認成功
     setSessionMessage('success', '予約を承認しました');

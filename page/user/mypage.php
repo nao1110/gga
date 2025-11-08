@@ -50,14 +50,14 @@ $stmt = $db->prepare("
 $stmt->execute([$user_id]);
 $all_reservations = $stmt->fetchAll();
 
-// 完了済みセッション（completed）
+// 完了済みセッション（completedまたはフィードバックあり）
 $completed_sessions = array_filter($all_reservations, function($r) {
-    return $r['status'] === 'completed';
+    return $r['status'] === 'completed' || ($r['status'] === 'confirmed' && $r['feedback_comment'] !== null);
 });
 
-// 実施予定セッション（confirmed）
+// 実施予定セッション（confirmedでフィードバックなし）
 $upcoming_sessions = array_filter($all_reservations, function($r) {
-    return $r['status'] === 'confirmed';
+    return $r['status'] === 'confirmed' && $r['feedback_comment'] === null;
 });
 
 // 承認待ちセッション（pending）
@@ -308,11 +308,11 @@ for ($i = 1; $i <= 5; $i++) {
               <p class="empty-message">確定済みの予約はありません</p>
             <?php endif; ?>
 
-            <!-- 過去の練習履歴 -->
+            <!-- 過去の練習履歴とフィードバック -->
             <div class="section-divider" style="margin-top: var(--spacing-xl);">
               <h4 class="section-subtitle">
                 <i data-lucide="history"></i>
-                過去の練習履歴
+                過去の練習履歴・フィードバック
               </h4>
             </div>
             
@@ -325,11 +325,24 @@ for ($i = 1; $i <= 5; $i++) {
                         <i data-lucide="calendar"></i>
                         <?php echo date('Y/n/j', strtotime($session['meeting_date'])) . '(' . getJapaneseWeekday($session['meeting_date']) . ')'; ?>
                       </span>
+                      <?php if ($session['feedback_comment']): ?>
+                        <span class="badge badge-success">レポート受領済み</span>
+                      <?php else: ?>
+                        <span class="badge" style="background-color: #ccc;">レポート未提出</span>
+                      <?php endif; ?>
                     </div>
                     <div class="history-consultant">
                       <i data-lucide="user"></i>
                       <?php echo h($session['trainer_name']); ?>
                     </div>
+                    <?php if ($session['feedback_comment']): ?>
+                      <div class="history-actions" style="margin-top: var(--spacing-sm);">
+                        <a href="mypage/reserve/feedback/view.php?id=<?php echo $session['id']; ?>" class="btn-primary btn-small">
+                          <i data-lucide="file-text"></i>
+                          フィードバックを見る
+                        </a>
+                      </div>
+                    <?php endif; ?>
                   </div>
                 <?php endforeach; ?>
               </div>

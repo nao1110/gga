@@ -24,6 +24,9 @@ $trainer_name = $current_user['name'];
 $trainer_specialty = $current_user['specialty'] ?? "キャリア形成支援";
 
 // 予約データを取得（承認待ち・確定済み・完了済み）
+// pending: trainer_idがNULLまたは自分のID（未割り当てまたは割り当て済み）
+// confirmed/completed: 自分に割り当てられたもののみ
+// 各受験者の完了済み実技練習回数もカウント
 $stmt = $pdo->prepare("
     SELECT 
         r.id,
@@ -36,17 +39,40 @@ $stmt = $pdo->prepare("
         u.email as user_email,
         p.id as persona_id,
         p.persona_name as persona_name,
+        p.age as persona_age,
+        p.family_structure as persona_family,
+        p.job as persona_job,
+        p.situation as persona_situation,
         f.id as feedback_id,
-        f.created_at as feedback_date
+        f.created_at as feedback_date,
+        (
+            SELECT COUNT(*) 
+            FROM reserves r2 
+            WHERE r2.user_id = r.user_id 
+            AND r2.status = 'completed'
+            AND r2.meeting_date < r.meeting_date
+        ) as completed_count
     FROM reserves r
     LEFT JOIN users u ON r.user_id = u.id
     LEFT JOIN personas p ON r.persona_id = p.id
     LEFT JOIN feedbacks f ON r.id = f.reserve_id
-    WHERE r.trainer_id = ?
+    WHERE (r.status = 'pending' AND (r.trainer_id IS NULL OR r.trainer_id = ?))
+       OR (r.status IN ('confirmed', 'completed') AND r.trainer_id = ?)
     ORDER BY r.meeting_date ASC
 ");
-$stmt->execute([$current_user['id']]);
+$stmt->execute([$current_user['id'], $current_user['id']]);
 $all_reservations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// ペルソナを動的に割り当てる関数
+function assignPersona($pdo, $user_id, $completed_count) {
+    // 完了回数に基づいてペルソナIDを決定（1-5をループ）
+    $persona_number = ($completed_count % 5) + 1;
+    
+    // ペルソナ情報を取得
+    $stmt = $pdo->prepare("SELECT id, persona_name, age, family_structure, job, situation FROM personas WHERE id = ?");
+    $stmt->execute([$persona_number]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
 
 // ステータスごとに分類
 $pending_reservations = [];
@@ -54,6 +80,19 @@ $confirmed_reservations = [];
 $completed_sessions = [];
 
 foreach ($all_reservations as $reservation) {
+    // ペルソナが未割り当ての場合、動的に割り当て
+    if (!$reservation['persona_id']) {
+        $persona = assignPersona($pdo, $reservation['user_id'], $reservation['completed_count']);
+        if ($persona) {
+            $reservation['persona_id'] = $persona['id'];
+            $reservation['persona_name'] = $persona['persona_name'];
+            $reservation['persona_age'] = $persona['age'];
+            $reservation['persona_family'] = $persona['family_structure'];
+            $reservation['persona_job'] = $persona['job'];
+            $reservation['persona_situation'] = $persona['situation'];
+        }
+    }
+    
     if ($reservation['status'] === 'pending') {
         $pending_reservations[] = $reservation;
     } elseif ($reservation['status'] === 'confirmed') {
@@ -93,6 +132,10 @@ $completed_sessions = array_slice($completed_sessions, 0, 3);
             <p class="hero-tagline">-キャリトレ-</p>
           </div>
                     <div class="header-actions">
+            <a href="profile.php" class="btn-secondary btn-small" style="margin-right: var(--spacing-sm);">
+              <i data-lucide="user"></i>
+              プロフィール
+            </a>
             <span class="user-name">
               <i data-lucide="graduation-cap"></i>
               <?php echo h($trainer_name); ?>
@@ -132,15 +175,48 @@ $completed_sessions = array_slice($completed_sessions, 0, 3);
             <div class="reservation-item pending-item">
               <div class="reservation-main">
                 <div class="reservation-header">
-                  <span class="student-name-header"><?php echo h($reservation['user_name']); ?> さん</span>
+                  <div class="user-info-header">
+                    <span class="role-label role-student">【受験者】</span>
+                    <span class="student-name-header"><?php echo h($reservation['user_name']); ?> さん</span>
+                  </div>
+                  <?php if ($reservation['persona_id']): ?>
+                    <span class="persona-badge">
+                      <i data-lucide="user-circle"></i>
+                      ペルソナ<?php echo h($reservation['persona_id']); ?>
+                    </span>
+                  <?php endif; ?>
                 </div>
+                
+                <?php if ($reservation['persona_name']): ?>
+                <div class="persona-info">
+                  <div class="persona-title">
+                    <span class="role-label role-persona">【相談者役】</span>
+                    <h4>
+                      <i data-lucide="user"></i>
+                      <?php echo h($reservation['persona_name']); ?> さん（<?php echo h($reservation['persona_age']); ?>歳）
+                    </h4>
+                  </div>
+                  <p class="persona-job"><strong>家族構成：</strong><?php echo h($reservation['persona_family']); ?></p>
+                  <p class="persona-job"><strong>業種・職種：</strong><?php echo h($reservation['persona_job']); ?></p>
+                  <p class="persona-situation"><strong>相談内容：</strong><?php echo h($reservation['persona_situation']); ?></p>
+                </div>
+                <?php endif; ?>
+                
                 <div class="reservation-info">
                   <div class="info-row">
                     <i data-lucide="calendar"></i>
-                    <span><?php echo h(date('Y年m月d日', strtotime($reservation['meeting_date']))); ?>（<?php echo getJapaneseWeekday($reservation['meeting_date']); ?>） <?php echo h(date('H:i', strtotime($reservation['meeting_date']))); ?></span>
+                    <span><?php echo h(date('Y年m月d日', strtotime($reservation['meeting_date']))); ?>（<?php echo getJapaneseWeekday($reservation['meeting_date']); ?>）</span>
                   </div>
                   <div class="info-row">
                     <i data-lucide="clock"></i>
+                    <span><?php 
+                      $start_time = date('H:i', strtotime($reservation['meeting_date']));
+                      $end_time = date('H:i', strtotime($reservation['meeting_date'] . ' +1 hour'));
+                      echo h($start_time . ' - ' . $end_time);
+                    ?></span>
+                  </div>
+                  <div class="info-row">
+                    <i data-lucide="info"></i>
                     <span class="text-muted">申請日: <?php echo h(date('m月d日', strtotime($reservation['created_at']))); ?></span>
                   </div>
                 </div>
@@ -176,12 +252,45 @@ $completed_sessions = array_slice($completed_sessions, 0, 3);
             <div class="reservation-item confirmed-item">
               <div class="reservation-main">
                 <div class="reservation-header">
-                  <span class="student-name-header"><?php echo h($reservation['user_name']); ?> さん</span>
+                  <div class="user-info-header">
+                    <span class="role-label role-student">【受験者】</span>
+                    <span class="student-name-header"><?php echo h($reservation['user_name']); ?> さん</span>
+                  </div>
+                  <?php if ($reservation['persona_id']): ?>
+                    <span class="persona-badge">
+                      <i data-lucide="user-circle"></i>
+                      ペルソナ<?php echo h($reservation['persona_id']); ?>
+                    </span>
+                  <?php endif; ?>
                 </div>
+                
+                <?php if ($reservation['persona_name']): ?>
+                <div class="persona-info">
+                  <div class="persona-title">
+                    <span class="role-label role-persona">【相談者役】</span>
+                    <h4>
+                      <i data-lucide="user"></i>
+                      <?php echo h($reservation['persona_name']); ?> さん（<?php echo h($reservation['persona_age']); ?>歳）
+                    </h4>
+                  </div>
+                  <p class="persona-job"><strong>家族構成：</strong><?php echo h($reservation['persona_family']); ?></p>
+                  <p class="persona-job"><strong>業種・職種：</strong><?php echo h($reservation['persona_job']); ?></p>
+                  <p class="persona-situation"><strong>相談内容：</strong><?php echo h($reservation['persona_situation']); ?></p>
+                </div>
+                <?php endif; ?>
+                
                 <div class="reservation-info">
                   <div class="info-row">
                     <i data-lucide="calendar"></i>
-                    <span><?php echo h(date('Y年m月d日', strtotime($reservation['meeting_date']))); ?>（<?php echo getJapaneseWeekday($reservation['meeting_date']); ?>） <?php echo h(date('H:i', strtotime($reservation['meeting_date']))); ?></span>
+                    <span><?php echo h(date('Y年m月d日', strtotime($reservation['meeting_date']))); ?>（<?php echo getJapaneseWeekday($reservation['meeting_date']); ?>）</span>
+                  </div>
+                  <div class="info-row">
+                    <i data-lucide="clock"></i>
+                    <span><?php 
+                      $start_time = date('H:i', strtotime($reservation['meeting_date']));
+                      $end_time = date('H:i', strtotime($reservation['meeting_date'] . ' +1 hour'));
+                      echo h($start_time . ' - ' . $end_time);
+                    ?></span>
                   </div>
                   <?php if ($reservation['meeting_url']): ?>
                   <div class="info-row">
@@ -224,12 +333,45 @@ $completed_sessions = array_slice($completed_sessions, 0, 3);
               <div class="reservation-item completed-item">
                 <div class="reservation-main">
                   <div class="reservation-header">
-                    <span class="student-name-header"><?php echo h($session['user_name']); ?> さん</span>
+                    <div class="user-info-header">
+                      <span class="role-label role-student">【受験者】</span>
+                      <span class="student-name-header"><?php echo h($session['user_name']); ?> さん</span>
+                    </div>
+                    <?php if ($session['persona_id']): ?>
+                      <span class="persona-badge">
+                        <i data-lucide="user-circle"></i>
+                        ペルソナ<?php echo h($session['persona_id']); ?>
+                      </span>
+                    <?php endif; ?>
                   </div>
+                  
+                  <?php if ($session['persona_name']): ?>
+                  <div class="persona-info">
+                    <div class="persona-title">
+                      <span class="role-label role-persona">【相談者役】</span>
+                      <h4>
+                        <i data-lucide="user"></i>
+                        <?php echo h($session['persona_name']); ?> さん（<?php echo h($session['persona_age']); ?>歳）
+                      </h4>
+                    </div>
+                    <p class="persona-job"><strong>家族構成：</strong><?php echo h($session['persona_family']); ?></p>
+                    <p class="persona-job"><strong>業種・職種：</strong><?php echo h($session['persona_job']); ?></p>
+                    <p class="persona-situation"><strong>相談内容：</strong><?php echo h($session['persona_situation']); ?></p>
+                  </div>
+                  <?php endif; ?>
+                  
                   <div class="reservation-info">
                     <div class="info-row">
                       <i data-lucide="calendar"></i>
-                      <span><?php echo h(date('Y年m月d日', strtotime($session['meeting_date']))); ?>（<?php echo getJapaneseWeekday($session['meeting_date']); ?>） <?php echo h(date('H:i', strtotime($session['meeting_date']))); ?></span>
+                      <span><?php echo h(date('Y年m月d日', strtotime($session['meeting_date']))); ?>（<?php echo getJapaneseWeekday($session['meeting_date']); ?>）</span>
+                    </div>
+                    <div class="info-row">
+                      <i data-lucide="clock"></i>
+                      <span><?php 
+                        $start_time = date('H:i', strtotime($session['meeting_date']));
+                        $end_time = date('H:i', strtotime($session['meeting_date'] . ' +1 hour'));
+                        echo h($start_time . ' - ' . $end_time);
+                      ?></span>
                     </div>
                     <?php if ($session['feedback_id']): ?>
                     <div class="info-row">

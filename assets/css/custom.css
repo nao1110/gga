@@ -2577,6 +2577,33 @@ h3 {
   margin-bottom: var(--spacing-3xl);
 }
 
+/* 評価基準エリア */
+.evaluation-criteria {
+  background-color: #f8f9fa;
+  border-left: 4px solid var(--primary-color);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border-radius: var(--radius-md);
+}
+
+.evaluation-criteria p {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.evaluation-criteria ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+  list-style-type: disc;
+}
+
+.evaluation-criteria li {
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
 .form-card {
   background-color: var(--background-white);
   border-radius: var(--radius-lg);
@@ -2651,6 +2678,26 @@ h3 {
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
   margin-top: var(--spacing-xs);
+}
+
+.form-text {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  margin-top: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.form-text svg {
+  width: 14px;
+  height: 14px;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
 }
 
 .checkbox-label {
@@ -3056,7 +3103,7 @@ h3 {
   color: var(--text-primary);
 }
 
-/* ペルソナ関連（互換性のため残す） */
+/* ペルソナ関連 */
 .reservation-persona {
   display: flex;
   align-items: center;
@@ -3064,13 +3111,89 @@ h3 {
 }
 
 .persona-badge {
-  background: var(--primary);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
   border-radius: var(--radius-full);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.persona-info {
+  background: #f8f9fa;
+  border-left: 4px solid #667eea;
+  padding: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+  border-radius: var(--radius-md);
+}
+
+.persona-info h4 {
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.persona-info p {
+  margin: var(--spacing-xs) 0;
+  line-height: 1.6;
+  font-size: var(--font-size-sm);
+}
+
+.persona-job {
+  color: var(--text-primary);
+}
+
+.persona-situation {
+  color: var(--text-secondary);
+}
+
+.reservation-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.user-info-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.role-label {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.role-label.role-student {
+  background: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #1976d2;
+}
+
+.role-label.role-persona {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  border: 1px solid #7b1fa2;
+}
+
+.persona-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
 }
 
 .persona-badge.completed {
