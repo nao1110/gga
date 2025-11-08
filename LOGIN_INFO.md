@@ -70,13 +70,21 @@ http://localhost/gs_code/gga/page/trainer/login.php
 http://localhost/gs_code/gga/page/client/login.php
 ```
 
-### 新規登録が必要
-現在、キャリア相談者のダミーデータはありません。
-新規登録してアカウントを作成してください。
+### アカウント一覧
 
-**新規登録URL:**
+| ID | 名前 | メールアドレス |
+|----|------|----------------|
+| 1 | 山本 真理子 | yamamoto@example.com |
+
+### 推奨テストアカウント
 ```
-http://localhost/gs_code/gga/page/client/register.php
+メール: yamamoto@example.com
+パスワード: password123
+```
+
+**マイページURL:**
+```
+http://localhost/gs_code/gga/page/client/mypage.php
 ```
 
 ---

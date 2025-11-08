@@ -40,5 +40,13 @@ Temporary Items
 .env
 .env.local
 
+# Google OAuth credentials
+controller/client_secret_*.json
+lib/google_auth.php
+
+# Composer
+composer.phar
+vendor/
+
 # Backup files
 *_backup.php

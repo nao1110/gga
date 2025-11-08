@@ -73,9 +73,9 @@ try {
     $_SESSION['user_name'] = $client['name'];
     $_SESSION['user_email'] = $client['email'];
     
-    // ログイン成功 - 現在はトップページにリダイレクト（将来的にマイページを作成予定）
-    setSessionMessage('success', 'ログインしました。（マイページは準備中です）');
-    redirect('/gs_code/gga/page/index.php');
+    // ログイン成功 - クライアントマイページにリダイレクト
+    setSessionMessage('success', 'ログインしました');
+    redirect('/gs_code/gga/page/client/mypage.php');
     
 } catch (PDOException $e) {
     error_log('Client Login Error: ' . $e->getMessage());

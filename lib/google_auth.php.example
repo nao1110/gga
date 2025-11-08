@@ -1,0 +1,69 @@
+<?php
+/**
+ * Google OAuth 2.0 認証設定（テンプレート）
+ * 
+ * @package CareerTre
+ * 
+ * セットアップ手順:
+ * 1. このファイルを google_auth.php にコピー
+ * 2. YOUR_CLIENT_ID と YOUR_CLIENT_SECRET を実際の値に置き換える
+ * 3. Google Cloud Consoleで以下のリダイレクトURIを登録:
+ *    - http://localhost/gs_code/gga/controller/trainer/google_callback.php
+ *    - http://localhost/gs_code/gga/controller/user/google_callback.php
+ */
+
+/**
+ * Google Clientを初期化して返す（トレーナー用）
+ * 
+ * @return Google\Client
+ */
+function getGoogleClient() {
+    $client = new Google\Client();
+    
+    // Google Cloud Consoleで取得したクライアントIDとシークレット
+    $client->setClientId('YOUR_CLIENT_ID.apps.googleusercontent.com');
+    $client->setClientSecret('YOUR_CLIENT_SECRET');
+    
+    // リダイレクトURI（トレーナー用）
+    $client->setRedirectUri('http://localhost/gs_code/gga/controller/trainer/google_callback.php');
+    
+    // 取得するスコープ（メールアドレスとプロフィール情報）
+    $client->addScope('email');
+    $client->addScope('profile');
+    
+    // アクセスタイプをofflineに設定（リフレッシュトークン取得用）
+    $client->setAccessType('offline');
+    
+    // 同意画面を毎回表示（開発時）
+    $client->setPrompt('consent');
+    
+    return $client;
+}
+
+/**
+ * Google Clientを初期化して返す（受験者用）
+ * 
+ * @return Google\Client
+ */
+function getGoogleClientForUser() {
+    $client = new Google\Client();
+    
+    // Google Cloud Consoleで取得したクライアントIDとシークレット
+    $client->setClientId('YOUR_CLIENT_ID.apps.googleusercontent.com');
+    $client->setClientSecret('YOUR_CLIENT_SECRET');
+    
+    // リダイレクトURI（受験者用）
+    $client->setRedirectUri('http://localhost/gs_code/gga/controller/user/google_callback.php');
+    
+    // 取得するスコープ（メールアドレスとプロフィール情報）
+    $client->addScope('email');
+    $client->addScope('profile');
+    
+    // アクセスタイプをofflineに設定（リフレッシュトークン取得用）
+    $client->setAccessType('offline');
+    
+    // 同意画面を毎回表示（開発時）
+    $client->setPrompt('consent');
+    
+    return $client;
+}
