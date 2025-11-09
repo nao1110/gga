@@ -44,6 +44,41 @@ $stmt = $db->prepare("
 ");
 $stmt->execute();
 $trainers = $stmt->fetchAll();
+
+// 自分の予約情報を取得
+$stmt_reserves = $db->prepare("
+    SELECT 
+        r.id,
+        r.meeting_date,
+        r.meet_url,
+        r.consultation_topic,
+        r.status,
+        r.created_at,
+        t.name as trainer_name,
+        t.email as trainer_email
+    FROM client_reserves r
+    LEFT JOIN trainers t ON r.trainer_id = t.id
+    WHERE r.client_id = ?
+    ORDER BY r.meeting_date DESC
+");
+$stmt_reserves->execute([$client_id]);
+$my_reservations = $stmt_reserves->fetchAll();
+
+// ステータスごとに分類
+$pending_reserves = [];
+$confirmed_reserves = [];
+$past_reserves = [];
+
+foreach ($my_reservations as $reserve) {
+    if ($reserve['status'] === 'pending') {
+        $pending_reserves[] = $reserve;
+    } elseif ($reserve['status'] === 'confirmed') {
+        $confirmed_reserves[] = $reserve;
+    } else {
+        $past_reserves[] = $reserve;
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -212,6 +247,121 @@ $trainers = $stmt->fetchAll();
         </div>
       <?php endif; ?>
 
+      <!-- 承認済み予約（Google Meet） -->
+      <?php if (!empty($confirmed_reserves)): ?>
+      <section class="content-section fade-in">
+        <article class="card">
+          <div class="card-header">
+            <h2>
+              <i data-lucide="video"></i>
+              キャリア相談 実施予定（Google Meet）
+            </h2>
+          </div>
+          <div class="card-body">
+            <?php foreach ($confirmed_reserves as $reserve): ?>
+            <div class="reservation-item confirmed-item">
+              <div class="reservation-main">
+                <div class="reservation-header">
+                  <div class="user-info-header">
+                    <span class="role-label role-trainer">【コンサルタント】</span>
+                    <span class="student-name-header"><?php echo h($reserve['trainer_name']); ?> さん</span>
+                  </div>
+                </div>
+                
+                <?php if ($reserve['consultation_topic']): ?>
+                <div class="persona-info">
+                  <p class="persona-situation"><strong>相談内容：</strong><?php echo nl2br(h($reserve['consultation_topic'])); ?></p>
+                </div>
+                <?php endif; ?>
+                
+                <div class="reservation-info">
+                  <div class="info-row">
+                    <i data-lucide="calendar"></i>
+                    <span><?php echo h(date('Y年m月d日', strtotime($reserve['meeting_date']))); ?>（<?php echo getJapaneseWeekday($reserve['meeting_date']); ?>）</span>
+                  </div>
+                  <div class="info-row">
+                    <i data-lucide="clock"></i>
+                    <span><?php 
+                      $start_time = date('H:i', strtotime($reserve['meeting_date']));
+                      $end_time = date('H:i', strtotime($reserve['meeting_date'] . ' +1 hour'));
+                      echo h($start_time . ' - ' . $end_time);
+                    ?></span>
+                  </div>
+                  <?php if ($reserve['meet_url']): ?>
+                  <div class="info-row meet-url-row">
+                    <i data-lucide="video"></i>
+                    <a href="<?php echo h($reserve['meet_url']); ?>" target="_blank" class="meeting-link meet-button">
+                      <i data-lucide="video"></i>
+                      Google Meetに参加
+                    </a>
+                    <button class="btn-icon" onclick="copyToClipboard('<?php echo h($reserve['meet_url']); ?>')" title="URLをコピー">
+                      <i data-lucide="copy"></i>
+                    </button>
+                  </div>
+                  <?php endif; ?>
+                </div>
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+        </article>
+      </section>
+      <?php endif; ?>
+
+      <!-- 承認待ち予約 -->
+      <?php if (!empty($pending_reserves)): ?>
+      <section class="content-section fade-in">
+        <article class="card">
+          <div class="card-header">
+            <h2>
+              <i data-lucide="clock"></i>
+              承認待ちの予約
+            </h2>
+          </div>
+          <div class="card-body">
+            <?php foreach ($pending_reserves as $reserve): ?>
+            <div class="reservation-item pending-item">
+              <div class="reservation-main">
+                <div class="reservation-header">
+                  <div class="user-info-header">
+                    <span class="role-label role-trainer">【コンサルタント】</span>
+                    <span class="student-name-header"><?php echo h($reserve['trainer_name']); ?> さん</span>
+                  </div>
+                  <span class="status-badge status-pending">承認待ち</span>
+                </div>
+                
+                <?php if ($reserve['consultation_topic']): ?>
+                <div class="persona-info">
+                  <p class="persona-situation"><strong>相談内容：</strong><?php echo nl2br(h($reserve['consultation_topic'])); ?></p>
+                </div>
+                <?php endif; ?>
+                
+                <div class="reservation-info">
+                  <div class="info-row">
+                    <i data-lucide="calendar"></i>
+                    <span><?php echo h(date('Y年m月d日', strtotime($reserve['meeting_date']))); ?>（<?php echo getJapaneseWeekday($reserve['meeting_date']); ?>）</span>
+                  </div>
+                  <div class="info-row">
+                    <i data-lucide="clock"></i>
+                    <span><?php 
+                      $start_time = date('H:i', strtotime($reserve['meeting_date']));
+                      $end_time = date('H:i', strtotime($reserve['meeting_date'] . ' +1 hour'));
+                      echo h($start_time . ' - ' . $end_time);
+                    ?></span>
+                  </div>
+                  <div class="info-row">
+                    <i data-lucide="info"></i>
+                    <span class="text-muted">申請日: <?php echo h(date('Y年m月d日', strtotime($reserve['created_at']))); ?></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+        </article>
+      </section>
+      <?php endif; ?>
+
       <!-- キャリアコンサルタント一覧 -->
       <section class="content-section fade-in">
         <article class="card">
@@ -290,6 +440,15 @@ $trainers = $stmt->fetchAll();
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>
     lucide.createIcons();
+    
+    // URLコピー
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(function() {
+        alert('URLをコピーしました');
+      }, function(err) {
+        console.error('コピーに失敗しました: ', err);
+      });
+    }
   </script>
 </body>
 </html>

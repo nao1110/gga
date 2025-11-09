@@ -1,5 +1,6 @@
 {
     "require": {
-        "google/apiclient": "*"
+        "google/apiclient": "*",
+        "google/apiclient-services": "^0.418.0"
     }
 }

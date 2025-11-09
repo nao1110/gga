@@ -66,6 +66,9 @@ try {
     $stmt->execute([$email]);
     $trainer = $stmt->fetch();
     
+    // アクセストークンをJSON形式で保存
+    $access_token_json = json_encode($token);
+    
     if ($trainer) {
         // 既存のトレーナー
         if (!$trainer['is_active']) {
@@ -73,17 +76,17 @@ try {
             redirect('/gs_code/gga/page/trainer/login.php');
         }
         
-        // Google IDを更新
-        $stmt = $db->prepare("UPDATE trainers SET google_id = ?, updated_at = NOW() WHERE id = ?");
-        $stmt->execute([$google_id, $trainer['id']]);
+        // Google IDとアクセストークンを更新
+        $stmt = $db->prepare("UPDATE trainers SET google_id = ?, google_access_token = ?, updated_at = NOW() WHERE id = ?");
+        $stmt->execute([$google_id, $access_token_json, $trainer['id']]);
         
     } else {
         // 新規トレーナーとして登録
         $stmt = $db->prepare("
-            INSERT INTO trainers (name, email, google_id, password, created_at, updated_at) 
-            VALUES (?, ?, ?, '', NOW(), NOW())
+            INSERT INTO trainers (name, email, google_id, google_access_token, password, created_at, updated_at) 
+            VALUES (?, ?, ?, ?, '', NOW(), NOW())
         ");
-        $stmt->execute([$name, $email, $google_id]);
+        $stmt->execute([$name, $email, $google_id, $access_token_json]);
         $trainer_id = $db->lastInsertId();
         
         // 新規登録したトレーナー情報を取得

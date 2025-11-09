@@ -50,3 +50,4 @@ vendor/
 
 # Backup files
 *_backup.php
+composer.phar

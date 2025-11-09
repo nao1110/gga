@@ -62,6 +62,9 @@ try {
     $db = getDBConnection();
     
     // 受験者が存在するか確認
+    // アクセストークンをJSON形式で保存（Calendar API用）
+    $access_token_json = json_encode($token);
+    
     $stmt = $db->prepare("SELECT id, name, email, is_active FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
@@ -73,17 +76,17 @@ try {
             redirect('/gs_code/gga/page/user/login.php');
         }
         
-        // Google IDを更新
-        $stmt = $db->prepare("UPDATE users SET google_id = ?, updated_at = NOW() WHERE id = ?");
-        $stmt->execute([$google_id, $user['id']]);
+        // Google IDとアクセストークンを更新
+        $stmt = $db->prepare("UPDATE users SET google_id = ?, google_access_token = ?, updated_at = NOW() WHERE id = ?");
+        $stmt->execute([$google_id, $access_token_json, $user['id']]);
         
     } else {
         // 新規受験者として登録
         $stmt = $db->prepare("
-            INSERT INTO users (name, email, google_id, password, created_at, updated_at) 
-            VALUES (?, ?, ?, '', NOW(), NOW())
+            INSERT INTO users (name, email, google_id, google_access_token, password, created_at, updated_at) 
+            VALUES (?, ?, ?, ?, '', NOW(), NOW())
         ");
-        $stmt->execute([$name, $email, $google_id]);
+        $stmt->execute([$name, $email, $google_id, $access_token_json]);
         $user_id = $db->lastInsertId();
         
         // 新規登録した受験者情報を取得

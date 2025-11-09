@@ -335,14 +335,18 @@ for ($i = 1; $i <= 5; $i++) {
                       <i data-lucide="user"></i>
                       <?php echo h($session['trainer_name']); ?>
                     </div>
-                    <?php if ($session['feedback_comment']): ?>
-                      <div class="history-actions" style="margin-top: var(--spacing-sm);">
+                    <div class="history-actions" style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs);">
+                      <?php if ($session['feedback_comment']): ?>
                         <a href="mypage/reserve/feedback/view.php?id=<?php echo $session['id']; ?>" class="btn-primary btn-small">
                           <i data-lucide="file-text"></i>
                           フィードバックを見る
                         </a>
-                      </div>
-                    <?php endif; ?>
+                      <?php endif; ?>
+                      <a href="mypage/reserve/feedback/detail.php?reserve_id=<?php echo $session['id']; ?>" class="btn-secondary btn-small">
+                        <i data-lucide="edit-3"></i>
+                        自己フィードバック
+                      </a>
+                    </div>
                   </div>
                 <?php endforeach; ?>
               </div>
