@@ -16,7 +16,7 @@ $old_email = getSessionMessage('old_email');
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>新規登録 - CareerTre キャリトレ</title>
+  <title>新規登録 - CareerTre キャリアトレーナーズ</title>
   
   <!-- Pico.css CDN -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
@@ -37,7 +37,7 @@ $old_email = getSessionMessage('old_email');
           トップに戻る
         </a>
         <h1 class="logo-primary">CareerTre</h1>
-        <p class="hero-tagline">-キャリトレ-</p>
+        <p class="hero-tagline">-キャリアトレーナーズ-</p>
       </header>
 
       <!-- 新規登録フォーム -->
@@ -161,7 +161,7 @@ $old_email = getSessionMessage('old_email');
 
       <!-- フッター -->
       <footer class="footer">
-        <p>&copy; 2025 CareerTre - キャリトレ All rights reserved.</p>
+        <p>&copy; 2025 CareerTre - キャリアトレーナーズ All rights reserved.</p>
       </footer>
 
     </div>

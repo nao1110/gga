@@ -1,39 +1,22 @@
 <?php
-// セッション開始（実際の実装では認証チェックを行う）
-session_start();
+/**
+ * 自己フィードバック専用ページ（廃止）
+ * view.phpに統合されたため、リダイレクト
+ */
 
-// 予約IDを取得
-$reservation_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+// 予約IDを取得（パラメータ名: reserve_id または id）
+$reservation_id = isset($_GET['reserve_id']) ? intval($_GET['reserve_id']) : (isset($_GET['id']) ? intval($_GET['id']) : 0);
 
-// ダミーデータ（実際はデータベースから取得）
-$user_name = "山田 太郎";
-
-// 予約詳細データ
-$reservation = [
-    'id' => $reservation_id,
-    'date' => '2025-11-15',
-    'time' => '14:00',
-    'end_time' => '15:00',
-    'consultant_name' => '佐藤 花子',
-    'status' => 'completed'
-];
-
-// 既存の自己フィードバック（編集時）
-$existing_feedback = null;
-// $existing_feedback = [
-//     'satisfaction' => 4,
-//     'strengths' => '傾聴姿勢を意識できた',
-//     'challenges' => '質問の組み立てが難しかった',
-//     'learnings' => '相手の話を最後まで聞くことの重要性',
-//     'next_goals' => '質問力の向上'
-// ];
+// view.phpにリダイレクト
+header('Location: view.php?id=' . $reservation_id);
+exit;
 ?>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>自己フィードバック入力 - CareerTre キャリトレ</title>
+  <title>自己フィードバック入力 - CareerTre キャリアトレーナーズ</title>
   
   <!-- Pico.css CDN -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
@@ -49,7 +32,7 @@ $existing_feedback = null;
       <div class="navbar-content">
         <div class="navbar-brand">
           <h1 class="logo-primary" style="margin: 0; font-size: var(--font-size-xl);">CareerTre</h1>
-          <span class="navbar-tagline">-キャリトレ-</span>
+          <span class="navbar-tagline">-キャリアトレーナーズ-</span>
         </div>
         <div class="navbar-menu">
           <a href="../../../mypage.php" class="nav-link">
@@ -224,7 +207,7 @@ $existing_feedback = null;
 
       <!-- フッター -->
       <footer class="footer">
-        <p>&copy; 2025 CareerTre - キャリトレ All rights reserved.</p>
+        <p>&copy; 2025 CareerTre - キャリアトレーナーズ All rights reserved.</p>
       </footer>
 
     </div>

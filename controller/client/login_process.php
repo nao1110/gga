@@ -8,6 +8,11 @@
 // タイムゾーンを日本時間（JST）に設定
 date_default_timezone_set('Asia/Tokyo');
 
+// セッション開始
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // 共通処理読み込み
 require_once __DIR__ . '/../../lib/database.php';
 require_once __DIR__ . '/../../lib/auth.php';
@@ -72,6 +77,10 @@ try {
     $_SESSION['user_type'] = 'client';
     $_SESSION['user_name'] = $client['name'];
     $_SESSION['user_email'] = $client['email'];
+    
+    // デバッグログ
+    error_log('Client Login Success - ID: ' . $client['id'] . ', Type: client, Name: ' . $client['name']);
+    error_log('Session after login: ' . print_r($_SESSION, true));
     
     // ログイン成功 - クライアントマイページにリダイレクト
     setSessionMessage('success', 'ログインしました');

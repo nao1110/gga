@@ -72,9 +72,9 @@ try {
     // ログイン成功
     loginUser($user['id'], 'user', $user['name'], $user['email']);
     
-    // マイページにリダイレクト
+    // トップページにリダイレクト
     setSessionMessage('success', 'ログインしました');
-    redirect('/gs_code/gga/page/user/mypage.php');
+    redirect('/gs_code/gga/page/index.php');
     
 } catch (PDOException $e) {
     error_log('Login Error (User): ' . $e->getMessage());

@@ -8,7 +8,7 @@
 /**
  * ログイン状態チェック（保護されたページで使用）
  * 
- * @param string $user_type ユーザータイプ（'user' or 'trainer'）
+ * @param string $user_type ユーザータイプ（'user', 'trainer', 'client'）
  * @return void ログインしていない場合はリダイレクト
  */
 function requireLogin($user_type = 'user') {
@@ -27,7 +27,7 @@ function requireLogin($user_type = 'user') {
  * ログイン処理
  * 
  * @param int $user_id ユーザーID
- * @param string $user_type ユーザータイプ（'user' or 'trainer'）
+ * @param string $user_type ユーザータイプ（'user', 'trainer', 'client'）
  * @param string $name ユーザー名
  * @param string $email メールアドレス
  * @return void

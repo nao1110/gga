@@ -1,4 +1,4 @@
-# CareerTre - キャリトレ
+# CareerTre - キャリアトレーナーズ
 
 キャリアコンサルタント試験受験者向けの実技練習サポートプラットフォーム
 
@@ -201,7 +201,7 @@ source database/add_google_id_to_users.sql
 
 ## ライセンス
 
-© 2025 CareerTre - キャリトレ All rights reserved.
+© 2025 CareerTre - キャリアトレーナーズ All rights reserved.
 
 ## 開発者
 

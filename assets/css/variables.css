@@ -1,15 +1,18 @@
 /* CareerTre - CSS Variables */
 :root {
   /* Colors */
-  --primary: #00BCD4;
-  --primary-hover: #0097A7;
-  --primary-light: #B2EBF2;
+  --primary: #FF9800;
+  --primary-hover: #F57C00;
+  --primary-light: #FFE0B2;
+  --secondary: #FFC107;
+  --secondary-hover: #FFA000;
+  --secondary-light: #FFF9C4;
   
   /* Background */
   --background-gradient: linear-gradient(135deg, 
-    #ffeef8 0%, 
-    #e0f7fa 50%, 
-    #e1f5e1 100%
+    #FFF8E1 0%, 
+    #FFECB3 50%, 
+    #FFE0B2 100%
   );
   --background-white: #FFFFFF;
   --background-light: #F8F9FA;

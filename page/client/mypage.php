@@ -10,6 +10,15 @@ require_once __DIR__ . '/../../lib/validation.php';
 require_once __DIR__ . '/../../lib/auth.php';
 require_once __DIR__ . '/../../lib/helpers.php';
 require_once __DIR__ . '/../../lib/database.php';
+
+// セッション開始（デバッグ用）
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// デバッグログ
+error_log('Client mypage.php - Session: ' . print_r($_SESSION, true));
+
 requireLogin('client');
 
 // 現在のユーザー情報取得
@@ -54,6 +63,10 @@ $stmt_reserves = $db->prepare("
         r.consultation_topic,
         r.status,
         r.created_at,
+        r.trainer_feedback,
+        r.client_feedback,
+        r.feedback_date,
+        r.client_feedback_date,
         t.name as trainer_name,
         t.email as trainer_email
     FROM client_reserves r
@@ -67,15 +80,15 @@ $my_reservations = $stmt_reserves->fetchAll();
 // ステータスごとに分類
 $pending_reserves = [];
 $confirmed_reserves = [];
-$past_reserves = [];
+$completed_reserves = [];
 
 foreach ($my_reservations as $reserve) {
     if ($reserve['status'] === 'pending') {
         $pending_reserves[] = $reserve;
     } elseif ($reserve['status'] === 'confirmed') {
         $confirmed_reserves[] = $reserve;
-    } else {
-        $past_reserves[] = $reserve;
+    } elseif ($reserve['status'] === 'completed') {
+        $completed_reserves[] = $reserve;
     }
 }
 
@@ -85,7 +98,7 @@ foreach ($my_reservations as $reserve) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>マイページ - CareerTre キャリトレ</title>
+  <title>マイページ - CareerTre キャリアトレーナーズ</title>
   
   <!-- Pico.css CDN -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
@@ -215,7 +228,7 @@ foreach ($my_reservations as $reserve) {
       <div class="navbar-content">
         <div class="navbar-brand">
           <h1 class="logo-primary" style="margin: 0; font-size: var(--font-size-xl);">CareerTre</h1>
-          <span class="navbar-tagline">-キャリトレ-</span>
+          <span class="navbar-tagline">-キャリアトレーナーズ-</span>
         </div>
         <div class="navbar-menu">
           <a href="mypage.php" class="nav-link active">
@@ -362,6 +375,111 @@ foreach ($my_reservations as $reserve) {
       </section>
       <?php endif; ?>
 
+      <!-- 完了済み相談（フィードバック） -->
+      <?php if (!empty($completed_reserves)): ?>
+      <section class="content-section fade-in">
+        <article class="card">
+          <div class="card-header">
+            <h2>
+              <i data-lucide="file-text"></i>
+              完了した相談とフィードバック
+            </h2>
+            <p style="margin-top: var(--spacing-sm); color: var(--text-secondary);">
+              過去の相談内容と、キャリアコンサルタントからのフィードバックを確認できます
+            </p>
+          </div>
+          <div class="card-body">
+            <?php foreach ($completed_reserves as $reserve): ?>
+            <div class="reservation-item completed-item" style="margin-bottom: var(--spacing-lg);">
+              <div class="reservation-main">
+                <div class="reservation-header">
+                  <div class="user-info-header">
+                    <span class="role-label role-trainer">【コンサルタント】</span>
+                    <span class="student-name-header"><?php echo h($reserve['trainer_name']); ?> さん</span>
+                  </div>
+                  <span class="status-badge status-completed">完了</span>
+                </div>
+                
+                <?php if ($reserve['consultation_topic']): ?>
+                <div class="persona-info">
+                  <p class="persona-situation"><strong>相談内容：</strong><?php echo nl2br(h($reserve['consultation_topic'])); ?></p>
+                </div>
+                <?php endif; ?>
+                
+                <div class="reservation-info">
+                  <div class="info-row">
+                    <i data-lucide="calendar"></i>
+                    <span><?php echo h(date('Y年m月d日', strtotime($reserve['meeting_date']))); ?>（<?php echo getJapaneseWeekday($reserve['meeting_date']); ?>）</span>
+                  </div>
+                  <div class="info-row">
+                    <i data-lucide="clock"></i>
+                    <span><?php 
+                      $start_time = date('H:i', strtotime($reserve['meeting_date']));
+                      $end_time = date('H:i', strtotime($reserve['meeting_date'] . ' +1 hour'));
+                      echo h($start_time . ' - ' . $end_time);
+                    ?></span>
+                  </div>
+                </div>
+                
+                <!-- キャリアコンサルタントからのフィードバック -->
+                <?php if ($reserve['trainer_feedback']): ?>
+                <div class="feedback-section" style="margin-top: var(--spacing-md); padding: var(--spacing-md); background: #f0f9ff; border-radius: var(--radius-md); border-left: 4px solid #3b82f6;">
+                  <h4 style="margin: 0 0 var(--spacing-sm) 0; font-size: var(--font-size-md); color: var(--text-primary); display: flex; align-items: center; gap: var(--spacing-xs);">
+                    <i data-lucide="message-square"></i>
+                    キャリアコンサルタントからのフィードバック
+                  </h4>
+                  <p style="margin: 0; font-size: var(--font-size-sm); line-height: 1.8; color: var(--text-secondary); white-space: pre-line;">
+                    <?php echo nl2br(h($reserve['trainer_feedback'])); ?>
+                  </p>
+                  <?php if ($reserve['feedback_date']): ?>
+                  <p style="margin-top: var(--spacing-sm); font-size: var(--font-size-xs); color: var(--text-muted); text-align: right;">
+                    <?php echo h(date('Y年m月d日 H:i', strtotime($reserve['feedback_date']))); ?>
+                  </p>
+                  <?php endif; ?>
+                </div>
+                <?php endif; ?>
+                
+                <!-- 自己フィードバック -->
+                <div class="feedback-section" style="margin-top: var(--spacing-md); padding: var(--spacing-md); background: #f0fdf4; border-radius: var(--radius-md); border-left: 4px solid #10b981;">
+                  <h4 style="margin: 0 0 var(--spacing-sm) 0; font-size: var(--font-size-md); color: var(--text-primary); display: flex; align-items: center; gap: var(--spacing-xs);">
+                    <i data-lucide="edit"></i>
+                    あなたの自己フィードバック
+                  </h4>
+                  <?php if ($reserve['client_feedback']): ?>
+                    <p style="margin: 0; font-size: var(--font-size-sm); line-height: 1.8; color: var(--text-secondary); white-space: pre-line;">
+                      <?php echo nl2br(h($reserve['client_feedback'])); ?>
+                    </p>
+                    <?php if ($reserve['client_feedback_date']): ?>
+                    <p style="margin-top: var(--spacing-sm); font-size: var(--font-size-xs); color: var(--text-muted); text-align: right;">
+                      <?php echo h(date('Y年m月d日 H:i', strtotime($reserve['client_feedback_date']))); ?>
+                    </p>
+                    <?php endif; ?>
+                  <?php else: ?>
+                    <form action="../../controller/client/feedback_save.php" method="POST" style="margin-top: var(--spacing-sm);">
+                      <input type="hidden" name="reserve_id" value="<?php echo h($reserve['id']); ?>">
+                      <textarea 
+                        name="client_feedback" 
+                        rows="4" 
+                        placeholder="相談を振り返って、気づきや学び、今後のアクションプランなどを記入してください..."
+                        style="width: 100%; padding: var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--font-size-sm);"
+                        required
+                      ></textarea>
+                      <button type="submit" class="btn-primary btn-small" style="margin-top: var(--spacing-xs);">
+                        <i data-lucide="save"></i>
+                        自己フィードバックを保存
+                      </button>
+                    </form>
+                  <?php endif; ?>
+                </div>
+                
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+        </article>
+      </section>
+      <?php endif; ?>
+
       <!-- キャリアコンサルタント一覧 -->
       <section class="content-section fade-in">
         <article class="card">
@@ -430,7 +548,7 @@ foreach ($my_reservations as $reserve) {
 
       <!-- フッター -->
       <footer class="footer">
-        <p>&copy; 2025 CareerTre - キャリトレ All rights reserved.</p>
+        <p>&copy; 2025 CareerTre - キャリアトレーナーズ All rights reserved.</p>
       </footer>
 
     </div>

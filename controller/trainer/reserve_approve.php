@@ -84,56 +84,59 @@ try {
         redirect('/gs_code/gga/page/trainer/mypage.php');
     }
     
+    // 代表アカウント（Google Meet作成用）の情報を取得
+    $stmt_admin = $db->prepare("
+        SELECT id, name, email, google_access_token 
+        FROM trainers 
+        WHERE email = 'naoko.s1110@gmail.com'
+        LIMIT 1
+    ");
+    $stmt_admin->execute();
+    $admin_account = $stmt_admin->fetch();
+    
     // ペルソナIDを決定（未割り当ての場合）
     $persona_id = $reserve['persona_id'];
     if (!$persona_id) {
-        // 完了回数に基づいてペルソナを割り当て（1-5をループ）
-        $persona_id = ($reserve['completed_count'] % 5) + 1;
+        // 完了回数に基づいてペルソナを割り当て（1-3をループ）
+        $persona_id = ($reserve['completed_count'] % 3) + 1;
     }
     
-    // Google Calendar統合処理
+    // ペルソナ情報を取得
+    $stmt_persona = $db->prepare("SELECT persona_name, age, family_structure, job, situation FROM personas WHERE id = ?");
+    $stmt_persona->execute([$persona_id]);
+    $persona = $stmt_persona->fetch();
+    
+    // Google Calendar統合処理（管理者アカウントのみで実行可能）
     $meet_url_generated = null;
     error_log("=== Calendar Integration Start ===");
-    error_log("Trainer token exists: " . (!empty($reserve['trainer_token']) ? 'YES' : 'NO'));
+    error_log("Admin account exists: " . (!empty($admin_account) ? 'YES' : 'NO'));
+    error_log("Admin token exists: " . (!empty($admin_account['google_access_token']) ? 'YES' : 'NO'));
     error_log("User token exists: " . (!empty($reserve['user_token']) ? 'YES' : 'NO'));
     
-    if (!empty($reserve['trainer_token']) && !empty($reserve['user_token'])) {
-        error_log("Both tokens available, starting Calendar API integration...");
+    // 管理者トークンがあればGoogle Meet URLを生成（ユーザートークンは不要）
+    if (!empty($admin_account['google_access_token'])) {
+        error_log("Admin token available, starting Calendar API integration...");
         try {
-            $trainer_token = json_decode($reserve['trainer_token'], true);
-            $user_token = json_decode($reserve['user_token'], true);
-            error_log("Tokens decoded successfully");
+            $admin_token = json_decode($admin_account['google_access_token'], true);
+            error_log("Admin token decoded successfully");
             
-            // トレーナーのGoogleクライアント初期化
-            $trainerClient = getGoogleClient();
-            $trainerClient->setAccessToken($trainer_token);
-            error_log("Trainer client initialized");
+            // 代表アカウントのGoogleクライアント初期化
+            $adminClient = getGoogleClient();
+            $adminClient->setAccessToken($admin_token);
+            error_log("Admin client initialized");
             
             // トークンの有効期限チェックとリフレッシュ
-            if ($trainerClient->isAccessTokenExpired() && $trainerClient->getRefreshToken()) {
-                $new_token = $trainerClient->fetchAccessTokenWithRefreshToken($trainerClient->getRefreshToken());
-                $trainer_token = array_merge($trainer_token, $new_token);
+            if ($adminClient->isAccessTokenExpired() && $adminClient->getRefreshToken()) {
+                $new_token = $adminClient->fetchAccessTokenWithRefreshToken($adminClient->getRefreshToken());
+                $admin_token = array_merge($admin_token, $new_token);
                 $stmt_update = $db->prepare("UPDATE trainers SET google_access_token = ? WHERE id = ?");
-                $stmt_update->execute([json_encode($trainer_token), $trainer_id]);
-                $trainerClient->setAccessToken($trainer_token);
-            }
-            
-            // ユーザーのGoogleクライアント初期化
-            $userClient = getGoogleClientForUser();
-            $userClient->setAccessToken($user_token);
-            
-            // トークンの有効期限チェックとリフレッシュ
-            if ($userClient->isAccessTokenExpired() && $userClient->getRefreshToken()) {
-                $new_token = $userClient->fetchAccessTokenWithRefreshToken($userClient->getRefreshToken());
-                $user_token = array_merge($user_token, $new_token);
-                $stmt_update = $db->prepare("UPDATE users SET google_access_token = ? WHERE id = ?");
-                $stmt_update->execute([json_encode($user_token), $reserve['user_id']]);
-                $userClient->setAccessToken($user_token);
+                $stmt_update->execute([json_encode($admin_token), $admin_account['id']]);
+                $adminClient->setAccessToken($admin_token);
             }
             
             // Calendar API サービスの初期化
-            $trainerCalendarService = new Google\Service\Calendar($trainerClient);
-            error_log("Calendar service created");
+            $adminCalendarService = new Google\Service\Calendar($adminClient);
+            error_log("Admin calendar service created");
             
             // イベントの開始・終了時刻を設定（1時間の練習）
             $meeting_datetime = new DateTime($reserve['meeting_date'], new DateTimeZone('Asia/Tokyo'));
@@ -142,10 +145,6 @@ try {
             error_log("Meeting time: " . $meeting_datetime->format('c'));
             
             // ペルソナ情報を取得
-            $stmt_persona = $db->prepare("SELECT persona_name, situation FROM personas WHERE id = ?");
-            $stmt_persona->execute([$persona_id]);
-            $persona = $stmt_persona->fetch();
-            
             $persona_info = $persona ? "ペルソナ: " . $persona['persona_name'] . "\n状況: " . $persona['situation'] : "";
             
             // Google Calendar イベントの作成
@@ -161,6 +160,7 @@ try {
                     'timeZone' => 'Asia/Tokyo',
                 ],
                 'attendees' => [
+                    ['email' => $admin_account['email']],
                     ['email' => $reserve['trainer_email']],
                     ['email' => $reserve['user_email']],
                 ],
@@ -183,25 +183,47 @@ try {
             
             error_log("About to insert event to Calendar API...");
             
-            // トレーナーのカレンダーにイベントを追加
-            $createdEvent = $trainerCalendarService->events->insert('primary', $event, [
+            // 代表アカウントのカレンダーにイベントを追加
+            $createdEvent = $adminCalendarService->events->insert('primary', $event, [
                 'conferenceDataVersion' => 1,
                 'sendUpdates' => 'all', // 全参加者に通知
             ]);
             
-            error_log("Event inserted successfully to trainer's calendar");
+            error_log("Event inserted successfully to admin's calendar");
             
-            // ユーザーのカレンダーにも同じイベントを追加
-            $userCalendarService = new Google\Service\Calendar($userClient);
-            $userCalendarService->events->insert('primary', $event, [
-                'conferenceDataVersion' => 1,
-                'sendUpdates' => 'all',
-            ]);
-            
-            error_log("Event inserted successfully to user's calendar");
-            
-            // Google Meet URLを取得
+            // Google Meet URLを取得（管理者カレンダーから）
             $meet_url_generated = $createdEvent->getHangoutLink();
+            error_log("Meet URL generated: " . ($meet_url_generated ?: 'NULL'));
+            
+            // ユーザーのカレンダーにも同じイベントを追加（ユーザートークンがある場合のみ）
+            if (!empty($reserve['user_token'])) {
+                try {
+                    $user_token = json_decode($reserve['user_token'], true);
+                    $userClient = getGoogleClientForUser();
+                    $userClient->setAccessToken($user_token);
+                    
+                    // トークンの有効期限チェックとリフレッシュ
+                    if ($userClient->isAccessTokenExpired() && $userClient->getRefreshToken()) {
+                        $new_token = $userClient->fetchAccessTokenWithRefreshToken($userClient->getRefreshToken());
+                        $user_token = array_merge($user_token, $new_token);
+                        $stmt_update = $db->prepare("UPDATE users SET google_access_token = ? WHERE id = ?");
+                        $stmt_update->execute([json_encode($user_token), $reserve['user_id']]);
+                        $userClient->setAccessToken($user_token);
+                    }
+                    
+                    $userCalendarService = new Google\Service\Calendar($userClient);
+                    $userCalendarService->events->insert('primary', $event, [
+                        'conferenceDataVersion' => 1,
+                        'sendUpdates' => 'all',
+                    ]);
+                    error_log("Event inserted successfully to user's calendar");
+                } catch (Exception $userCalendarError) {
+                    error_log("Failed to add event to user's calendar (non-critical): " . $userCalendarError->getMessage());
+                    // ユーザーカレンダーへの追加が失敗してもMeet URLは有効なので処理続行
+                }
+            } else {
+                error_log("User token not available - skipping user calendar addition (Meet URL still generated)");
+            }
             
             error_log("Calendar event created. Meet URL: " . ($meet_url_generated ?: 'NULL'));
             
@@ -213,7 +235,7 @@ try {
             error_log('Error trace: ' . $e->getTraceAsString());
         }
     } else {
-        error_log("Skipping Calendar integration - tokens not available");
+        error_log("Skipping Calendar integration - admin token not available");
     }
     
     // 予約を承認（trainer_idとpersona_idも設定）
@@ -227,6 +249,93 @@ try {
         WHERE id = ?
     ");
     $stmt->execute([$trainer_id, $persona_id, $meet_url_generated ?: $meeting_url ?: null, $reserve_id]);
+    
+    // メール通知の送信
+    $meeting_datetime = new DateTime($reserve['meeting_date'], new DateTimeZone('Asia/Tokyo'));
+    $meeting_date_formatted = $meeting_datetime->format('Y年m月d日（D） H:i');
+    $meeting_url_final = $meet_url_generated ?: $meeting_url;
+    
+    // 受験者へのメール通知
+    $to_user = $reserve['user_email'];
+    $subject_user = '【キャリアトレーナーズ】実技練習の予約が承認されました';
+    $message_user = "{$reserve['user_name']} 様\n\n";
+    $message_user .= "実技練習の予約が承認されました。\n\n";
+    $message_user .= "■ 実技練習詳細\n";
+    $message_user .= "日時: {$meeting_date_formatted}\n";
+    $message_user .= "トレーナー: {$reserve['trainer_name']} 様\n\n";
+    
+    if ($persona) {
+        $message_user .= "■ ペルソナ情報（相談者役）\n";
+        $message_user .= "名前: {$persona['persona_name']} さん（{$persona['age']}歳）\n";
+        $message_user .= "家族構成: {$persona['family_structure']}\n";
+        $message_user .= "業種・職種: {$persona['job']}\n";
+        $message_user .= "相談内容: {$persona['situation']}\n\n";
+    }
+    
+    if ($meeting_url_final) {
+        $message_user .= "■ オンライン会議URL\n";
+        $message_user .= "{$meeting_url_final}\n\n";
+    }
+    
+    $message_user .= "準備を整えて、当日をお待ちください。\n";
+    $message_user .= "合格を目指して頑張りましょう！\n\n";
+    $message_user .= "---\n";
+    $message_user .= "キャリアトレーナーズ\n";
+    $message_user .= "https://localhost/gs_code/gga/\n";
+    
+    // トレーナーへのメール通知
+    $to_trainer = $reserve['trainer_email'];
+    $subject_trainer = '【キャリアトレーナーズ】予約を承認しました';
+    $message_trainer = "{$reserve['trainer_name']} 様\n\n";
+    $message_trainer .= "以下の実技練習予約を承認しました。\n\n";
+    $message_trainer .= "■ 実技練習詳細\n";
+    $message_trainer .= "日時: {$meeting_date_formatted}\n";
+    $message_trainer .= "受験者: {$reserve['user_name']} 様\n\n";
+    
+    if ($persona) {
+        $message_trainer .= "■ ペルソナ情報（相談者役として演じてください）\n";
+        $message_trainer .= "名前: {$persona['persona_name']} さん（{$persona['age']}歳）\n";
+        $message_trainer .= "家族構成: {$persona['family_structure']}\n";
+        $message_trainer .= "業種・職種: {$persona['job']}\n";
+        $message_trainer .= "相談内容: {$persona['situation']}\n\n";
+    }
+    
+    if ($meeting_url_final) {
+        $message_trainer .= "■ オンライン会議URL\n";
+        $message_trainer .= "{$meeting_url_final}\n\n";
+    }
+    
+    $message_trainer .= "当日はよろしくお願いいたします。\n\n";
+    $message_trainer .= "---\n";
+    $message_trainer .= "キャリアトレーナーズ\n";
+    $message_trainer .= "https://localhost/gs_code/gga/\n";
+    
+    // メール送信（日本語対応）
+    mb_language("japanese");
+    mb_internal_encoding("UTF-8");
+    
+    $headers_user = "From: noreply@career-trainers.com\r\n";
+    $headers_user .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    
+    $headers_trainer = "From: noreply@career-trainers.com\r\n";
+    $headers_trainer .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    
+    // メール送信実行
+    $mail_sent_user = mb_send_mail($to_user, $subject_user, $message_user, $headers_user);
+    $mail_sent_trainer = mb_send_mail($to_trainer, $subject_trainer, $message_trainer, $headers_trainer);
+    
+    // ログ出力
+    if ($mail_sent_user) {
+        error_log("Email sent to user: {$to_user}");
+    } else {
+        error_log("Failed to send email to user: {$to_user}");
+    }
+    
+    if ($mail_sent_trainer) {
+        error_log("Email sent to trainer: {$to_trainer}");
+    } else {
+        error_log("Failed to send email to trainer: {$to_trainer}");
+    }
     
     // 承認成功
     if ($meet_url_generated) {

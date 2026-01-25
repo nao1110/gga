@@ -68,6 +68,21 @@ $meeting_datetime = $selected_date . ' ' . $selected_time . ':00';
 try {
     $db = getDBConnection();
     
+    // 予約総数をチェック（最大3回まで）
+    $stmt = $db->prepare("
+        SELECT COUNT(*) as total_count FROM reserves 
+        WHERE user_id = ?
+        AND status IN ('pending', 'confirmed', 'completed')
+    ");
+    $stmt->execute([$user_id]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    $total_reservations = $result['total_count'];
+    
+    if ($total_reservations >= 3) {
+        setSessionMessage('error', '予約は最大3回までです。既に3回の予約枠を使用しています。');
+        redirect('/gs_code/gga/page/user/mypage/reserve/new.php');
+    }
+    
     // 同じ日時に既に予約があるかチェック
     $stmt = $db->prepare("
         SELECT id FROM reserves 

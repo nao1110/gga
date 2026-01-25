@@ -47,7 +47,7 @@ $pending_reservations = array_filter($reservations, function($r) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>予約一覧 - CareerTre キャリトレ</title>
+  <title>予約一覧 - CareerTre キャリアトレーナーズ</title>
   
   <!-- Pico.css CDN -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
@@ -63,7 +63,7 @@ $pending_reservations = array_filter($reservations, function($r) {
       <div class="navbar-content">
         <div class="navbar-brand">
           <h1 class="logo-primary" style="margin: 0; font-size: var(--font-size-xl);">CareerTre</h1>
-          <span class="navbar-tagline">-キャリトレ-</span>
+          <span class="navbar-tagline">-キャリアトレーナーズ-</span>
         </div>
         <div class="navbar-menu">
           <a href="../mypage.php" class="nav-link">
@@ -312,7 +312,7 @@ $pending_reservations = array_filter($reservations, function($r) {
 
       <!-- フッター -->
       <footer class="footer">
-        <p>&copy; 2025 CareerTre - キャリトレ All rights reserved.</p>
+        <p>&copy; 2025 CareerTre - キャリアトレーナーズ All rights reserved.</p>
       </footer>
 
     </div>

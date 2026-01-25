@@ -75,7 +75,7 @@ if (!$reservation) {
 
 // ペルソナが未割り当ての場合、動的に割り当て
 if (!$reservation['persona_id']) {
-    $persona_number = ($reservation['completed_count'] % 5) + 1;
+    $persona_number = ($reservation['completed_count'] % 3) + 1;
     $stmt = $pdo->prepare("SELECT id, persona_name, age, family_structure, job, situation FROM personas WHERE id = ?");
     $stmt->execute([$persona_number]);
     $persona = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -113,7 +113,7 @@ if ($reservation['feedback_id'] && $reservation['feedback_comment']) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>フィードバック<?php echo $is_edit_mode ? '確認・編集' : '入力'; ?> - CareerTre キャリトレ</title>
+  <title>フィードバック<?php echo $is_edit_mode ? '確認・編集' : '入力'; ?> - CareerTre キャリアトレーナーズ</title>
   
   <!-- Pico.css CDN -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
@@ -134,7 +134,7 @@ if ($reservation['feedback_id'] && $reservation['feedback_comment']) {
           マイページに戻る
         </a>
         <h1 class="logo-primary">CareerTre</h1>
-        <p class="hero-tagline">-キャリトレ-</p>
+        <p class="hero-tagline">-キャリアトレーナーズ-</p>
       </header>
 
       <!-- 実技練習情報 -->
@@ -349,7 +349,7 @@ if ($reservation['feedback_id'] && $reservation['feedback_comment']) {
 
       <!-- フッター -->
       <footer class="footer">
-        <p>&copy; 2025 CareerTre - キャリトレ All rights reserved.</p>
+        <p>&copy; 2025 CareerTre - キャリアトレーナーズ All rights reserved.</p>
       </footer>
 
     </div>
