@@ -47,6 +47,7 @@ $stmt = $pdo->prepare("
         p.age as persona_age,
         p.family_structure as persona_family,
         p.job as persona_job,
+        p.theme as persona_theme,
         p.situation as persona_situation,
         f.id as feedback_id,
         f.comment as feedback_comment,
@@ -76,7 +77,7 @@ if (!$reservation) {
 // ペルソナが未割り当ての場合、動的に割り当て
 if (!$reservation['persona_id']) {
     $persona_number = ($reservation['completed_count'] % 3) + 1;
-    $stmt = $pdo->prepare("SELECT id, persona_name, age, family_structure, job, situation FROM personas WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, persona_name, age, family_structure, job, theme, situation FROM personas WHERE id = ?");
     $stmt->execute([$persona_number]);
     $persona = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($persona) {
@@ -85,6 +86,7 @@ if (!$reservation['persona_id']) {
         $reservation['persona_age'] = $persona['age'];
         $reservation['persona_family'] = $persona['family_structure'];
         $reservation['persona_job'] = $persona['job'];
+        $reservation['persona_theme'] = $persona['theme'];
         $reservation['persona_situation'] = $persona['situation'];
     }
 }
@@ -100,8 +102,14 @@ if ($reservation['feedback_id'] && $reservation['feedback_comment']) {
     if ($feedback_json) {
         $feedback_data = [
             'attitude_comment' => $feedback_json['attitude_comment'] ?? '',
+            'attitude_score_1' => $feedback_json['attitude_score_1'] ?? 3,
+            'attitude_score_2' => $feedback_json['attitude_score_2'] ?? 3,
             'problem_comment' => $feedback_json['problem_comment'] ?? '',
+            'problem_score_1' => $feedback_json['problem_score_1'] ?? 3,
+            'problem_score_2' => $feedback_json['problem_score_2'] ?? 3,
             'development_comment' => $feedback_json['development_comment'] ?? '',
+            'development_score_1' => $feedback_json['development_score_1'] ?? 3,
+            'development_score_2' => $feedback_json['development_score_2'] ?? 3,
             'next_advice' => $feedback_json['next_advice'] ?? '',
             'submitted_at' => $reservation['feedback_date']
         ];
@@ -184,6 +192,9 @@ if ($reservation['feedback_id'] && $reservation['feedback_comment']) {
               </h4>
               <p class="persona-job"><strong>家族構成：</strong><?php echo h($reservation['persona_family']); ?></p>
               <p class="persona-job"><strong>業種・職種：</strong><?php echo h($reservation['persona_job']); ?></p>
+              <?php if (!empty($reservation['persona_theme'])): ?>
+              <p class="persona-job"><strong>相談テーマ：</strong><?php echo h($reservation['persona_theme']); ?></p>
+              <?php endif; ?>
               <p class="persona-situation"><strong>相談内容：</strong><?php echo h($reservation['persona_situation']); ?></p>
             </div>
             <?php endif; ?>
@@ -239,13 +250,35 @@ if ($reservation['feedback_id'] && $reservation['feedback_comment']) {
                   <i data-lucide="ear"></i>
                   1. 態度・傾聴（基本的姿勢）
                 </h3>
-                <div class="evaluation-criteria">
-                  <p><strong>評価項目：</strong></p>
-                  <ul>
-                    <li>受容的・共感的な態度で受験者を迎えることができる</li>
-                    <li>受験者との信頼関係を構築できる</li>
-                    <li>適切な応答技法を用いることができる</li>
-                  </ul>
+                
+                <!-- チェックポイント1-1 -->
+                <div class="evaluation-item" style="margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: #f8f9fa; border-radius: 8px;">
+                  <label style="font-weight: 600; margin-bottom: var(--spacing-sm); display: block;">
+                    チェックポイント1: 相談者が話しやすい雰囲気（表情・相槌・声のトーン）だったか <span class="required">*</span>
+                  </label>
+                  <div class="score-selector" style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                      <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="attitude_score_1" value="<?php echo $i; ?>" required <?php echo ($is_edit_mode && isset($feedback_data['attitude_score_1']) && $feedback_data['attitude_score_1'] == $i) ? 'checked' : ''; ?>>
+                        <span style="margin-left: 4px;"><?php echo $i; ?></span>
+                      </label>
+                    <?php endfor; ?>
+                  </div>
+                </div>
+                
+                <!-- チェックポイント1-2 -->
+                <div class="evaluation-item" style="margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: #f8f9fa; border-radius: 8px;">
+                  <label style="font-weight: 600; margin-bottom: var(--spacing-sm); display: block;">
+                    チェックポイント2: 感情への共感を示し、信頼関係（ラポール）を築けていたか <span class="required">*</span>
+                  </label>
+                  <div class="score-selector" style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                      <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="attitude_score_2" value="<?php echo $i; ?>" required <?php echo ($is_edit_mode && isset($feedback_data['attitude_score_2']) && $feedback_data['attitude_score_2'] == $i) ? 'checked' : ''; ?>>
+                        <span style="margin-left: 4px;"><?php echo $i; ?></span>
+                      </label>
+                    <?php endfor; ?>
+                  </div>
                 </div>
                 
                 <div class="form-group">
@@ -266,13 +299,35 @@ if ($reservation['feedback_id'] && $reservation['feedback_comment']) {
                   <i data-lucide="search"></i>
                   2. 問題把握
                 </h3>
-                <div class="evaluation-criteria">
-                  <p><strong>評価項目：</strong></p>
-                  <ul>
-                    <li>受験者の主訴を明確にできる</li>
-                    <li>受験者のキャリアに関する経験等を傾聴できる</li>
-                    <li>受験者の真の課題を把握できる</li>
-                  </ul>
+                
+                <!-- チェックポイント2-1 -->
+                <div class="evaluation-item" style="margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: #f8f9fa; border-radius: 8px;">
+                  <label style="font-weight: 600; margin-bottom: var(--spacing-sm); display: block;">
+                    チェックポイント1: 相談者が一番言いたかったこと（主訴）をつかめていたか <span class="required">*</span>
+                  </label>
+                  <div class="score-selector" style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                      <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="problem_score_1" value="<?php echo $i; ?>" required <?php echo ($is_edit_mode && isset($feedback_data['problem_score_1']) && $feedback_data['problem_score_1'] == $i) ? 'checked' : ''; ?>>
+                        <span style="margin-left: 4px;"><?php echo $i; ?></span>
+                      </label>
+                    <?php endfor; ?>
+                  </div>
+                </div>
+                
+                <!-- チェックポイント2-2 -->
+                <div class="evaluation-item" style="margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: #f8f9fa; border-radius: 8px;">
+                  <label style="font-weight: 600; margin-bottom: var(--spacing-sm); display: block;">
+                    チェックポイント2: CLの自己理解不足や仕事理解不足など、客観的な課題を見つけたか <span class="required">*</span>
+                  </label>
+                  <div class="score-selector" style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                      <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="problem_score_2" value="<?php echo $i; ?>" required <?php echo ($is_edit_mode && isset($feedback_data['problem_score_2']) && $feedback_data['problem_score_2'] == $i) ? 'checked' : ''; ?>>
+                        <span style="margin-left: 4px;"><?php echo $i; ?></span>
+                      </label>
+                    <?php endfor; ?>
+                  </div>
                 </div>
                 
                 <div class="form-group">
@@ -293,13 +348,35 @@ if ($reservation['feedback_id'] && $reservation['feedback_comment']) {
                   <i data-lucide="trending-up"></i>
                   3. 具体的展開
                 </h3>
-                <div class="evaluation-criteria">
-                  <p><strong>評価項目：</strong></p>
-                  <ul>
-                    <li>受験者の目標を明確にできる</li>
-                    <li>受験者の自己理解や、仕事・職業の理解を深めることができる</li>
-                    <li>受験者に対して適切な支援を行うことができる</li>
-                  </ul>
+                
+                <!-- チェックポイント3-1 -->
+                <div class="evaluation-item" style="margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: #f8f9fa; border-radius: 8px;">
+                  <label style="font-weight: 600; margin-bottom: var(--spacing-sm); display: block;">
+                    チェックポイント1: 相談者の「気づき」を促す問いかけや要約があったか <span class="required">*</span>
+                  </label>
+                  <div class="score-selector" style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                      <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="development_score_1" value="<?php echo $i; ?>" required <?php echo ($is_edit_mode && isset($feedback_data['development_score_1']) && $feedback_data['development_score_1'] == $i) ? 'checked' : ''; ?>>
+                        <span style="margin-left: 4px;"><?php echo $i; ?></span>
+                      </label>
+                    <?php endfor; ?>
+                  </div>
+                </div>
+                
+                <!-- チェックポイント3-2 -->
+                <div class="evaluation-item" style="margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: #f8f9fa; border-radius: 8px;">
+                  <label style="font-weight: 600; margin-bottom: var(--spacing-sm); display: block;">
+                    チェックポイント2: 目標共有ができ、次の一歩に向けた動機づけができたか <span class="required">*</span>
+                  </label>
+                  <div class="score-selector" style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                    <?php for ($i = 1; $i <= 5; $i++): ?>
+                      <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="development_score_2" value="<?php echo $i; ?>" required <?php echo ($is_edit_mode && isset($feedback_data['development_score_2']) && $feedback_data['development_score_2'] == $i) ? 'checked' : ''; ?>>
+                        <span style="margin-left: 4px;"><?php echo $i; ?></span>
+                      </label>
+                    <?php endfor; ?>
+                  </div>
                 </div>
                 
                 <div class="form-group">
@@ -329,7 +406,7 @@ if ($reservation['feedback_id'] && $reservation['feedback_comment']) {
                     name="next_advice" 
                     rows="5" 
                     required
-                    placeholder="例：全体として基本的な姿勢はしっかりできています。次回は「問題把握」の深掘りと「具体的展開」での支援の部分を特に意識して練習してみましょう。時間配分も意識して、前半15分で問題把握、後半15分で具体的展開という流れを作ってみてください。着実に成長していますので、この調子で頑張りましょう！"
+                    placeholder="例：展開への意識が高く、課題解決の方向性は的確でした！次回は、相談者が感情を吐露した場面で、あえて『間』を置いたり、オウム返しで感情を汲み取ったりすることを意識してみてください。ラポール（信頼関係）が深まれば、提案した際のアドバイスの浸透率がぐっと上がりますよ。"
                   ><?php echo $is_edit_mode ? h($feedback_data['next_advice'] ?? '') : ''; ?></textarea>
                 </div>
               </div>

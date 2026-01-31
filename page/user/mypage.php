@@ -41,6 +41,7 @@ $stmt = $db->prepare("
         p.age,
         p.family_structure,
         p.job,
+        p.theme,
         p.situation,
         f.comment as feedback_comment,
         f.id as feedback_id,
@@ -672,18 +673,15 @@ for ($i = 1; $i <= 3; $i++) {
                 </div>
               <?php endif; ?>
               
-              <?php if ($session['persona_name']): ?>
-                <div class="persona-box">
-                  <div class="persona-title">
-                    <i data-lucide="user-circle"></i>
-                    ロールプレイのペルソナ
-                  </div>
-                  <div class="persona-details">
-                    <strong><?php echo h($session['persona_name']); ?></strong>（<?php echo h($session['age']); ?>歳）<br>
-                    <?php echo h($session['family_structure']); ?> / <?php echo h($session['job']); ?>
-                  </div>
+              <div class="persona-box">
+                <div class="persona-title">
+                  <i data-lucide="user-circle"></i>
+                  ロールプレイのペルソナ
                 </div>
-              <?php endif; ?>
+                <div class="persona-details" style="color: #666;">
+                  ペルソナは当日にお知らせします
+                </div>
+              </div>
               
               <?php if ($session['meeting_url']): ?>
                 <div class="meet-url">

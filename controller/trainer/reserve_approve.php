@@ -106,21 +106,21 @@ try {
     $stmt_persona->execute([$persona_id]);
     $persona = $stmt_persona->fetch();
     
-    // Google Calendar統合処理（管理者アカウントのみで実行可能）
+    // Google Calendar統合処理（管理者アカウントで実行、録画はnaoko.s1110@gmail.comに保存）
     $meet_url_generated = null;
     error_log("=== Calendar Integration Start ===");
     error_log("Admin account exists: " . (!empty($admin_account) ? 'YES' : 'NO'));
     error_log("Admin token exists: " . (!empty($admin_account['google_access_token']) ? 'YES' : 'NO'));
     error_log("User token exists: " . (!empty($reserve['user_token']) ? 'YES' : 'NO'));
     
-    // 管理者トークンがあればGoogle Meet URLを生成（ユーザートークンは不要）
+    // 管理者トークンがあればGoogle Meet URLを生成（管理者が主催者、録画データ蓄積用）
     if (!empty($admin_account['google_access_token'])) {
         error_log("Admin token available, starting Calendar API integration...");
         try {
             $admin_token = json_decode($admin_account['google_access_token'], true);
             error_log("Admin token decoded successfully");
             
-            // 代表アカウントのGoogleクライアント初期化
+            // 管理者のGoogleクライアント初期化
             $adminClient = getGoogleClient();
             $adminClient->setAccessToken($admin_token);
             error_log("Admin client initialized");
@@ -147,7 +147,7 @@ try {
             // ペルソナ情報を取得
             $persona_info = $persona ? "ペルソナ: " . $persona['persona_name'] . "\n状況: " . $persona['situation'] : "";
             
-            // Google Calendar イベントの作成
+            // Google Calendar イベントの作成（管理者が主催者、録画データ保存先）
             $event = new Google\Service\Calendar\Event([
                 'summary' => 'キャリアコンサルタント実技練習 - ' . $reserve['user_name'] . ' & ' . $reserve['trainer_name'],
                 'description' => "実技練習セッション\n\n受験者: " . $reserve['user_name'] . "\nトレーナー: " . $reserve['trainer_name'] . "\n\n" . $persona_info,
@@ -160,9 +160,8 @@ try {
                     'timeZone' => 'Asia/Tokyo',
                 ],
                 'attendees' => [
-                    ['email' => $admin_account['email']],
-                    ['email' => $reserve['trainer_email']],
-                    ['email' => $reserve['user_email']],
+                    ['email' => $reserve['trainer_email'], 'responseStatus' => 'accepted', 'organizer' => false],
+                    ['email' => $reserve['user_email'], 'responseStatus' => 'accepted', 'organizer' => false],
                 ],
                 'conferenceData' => [
                     'createRequest' => [
@@ -172,6 +171,11 @@ try {
                         ],
                     ],
                 ],
+                'guestsCanModify' => true,
+                'guestsCanInviteOthers' => true,
+                'guestsCanSeeOtherGuests' => true,
+                'anyoneCanAddSelf' => true,
+                'visibility' => 'public',
                 'reminders' => [
                     'useDefault' => false,
                     'overrides' => [
@@ -181,9 +185,9 @@ try {
                 ],
             ]);
             
-            error_log("About to insert event to Calendar API...");
+            error_log("About to insert event to Admin's Calendar API...");
             
-            // 代表アカウントのカレンダーにイベントを追加
+            // 管理者のカレンダーにイベントを追加（管理者が主催者、録画保存先）
             $createdEvent = $adminCalendarService->events->insert('primary', $event, [
                 'conferenceDataVersion' => 1,
                 'sendUpdates' => 'all', // 全参加者に通知
@@ -191,39 +195,13 @@ try {
             
             error_log("Event inserted successfully to admin's calendar");
             
-            // Google Meet URLを取得（管理者カレンダーから）
+            // Google Meet URLを取得（管理者カレンダーから、録画もここに保存される）
             $meet_url_generated = $createdEvent->getHangoutLink();
             error_log("Meet URL generated: " . ($meet_url_generated ?: 'NULL'));
             
-            // ユーザーのカレンダーにも同じイベントを追加（ユーザートークンがある場合のみ）
-            if (!empty($reserve['user_token'])) {
-                try {
-                    $user_token = json_decode($reserve['user_token'], true);
-                    $userClient = getGoogleClientForUser();
-                    $userClient->setAccessToken($user_token);
-                    
-                    // トークンの有効期限チェックとリフレッシュ
-                    if ($userClient->isAccessTokenExpired() && $userClient->getRefreshToken()) {
-                        $new_token = $userClient->fetchAccessTokenWithRefreshToken($userClient->getRefreshToken());
-                        $user_token = array_merge($user_token, $new_token);
-                        $stmt_update = $db->prepare("UPDATE users SET google_access_token = ? WHERE id = ?");
-                        $stmt_update->execute([json_encode($user_token), $reserve['user_id']]);
-                        $userClient->setAccessToken($user_token);
-                    }
-                    
-                    $userCalendarService = new Google\Service\Calendar($userClient);
-                    $userCalendarService->events->insert('primary', $event, [
-                        'conferenceDataVersion' => 1,
-                        'sendUpdates' => 'all',
-                    ]);
-                    error_log("Event inserted successfully to user's calendar");
-                } catch (Exception $userCalendarError) {
-                    error_log("Failed to add event to user's calendar (non-critical): " . $userCalendarError->getMessage());
-                    // ユーザーカレンダーへの追加が失敗してもMeet URLは有効なので処理続行
-                }
-            } else {
-                error_log("User token not available - skipping user calendar addition (Meet URL still generated)");
-            }
+            // sendUpdates='all'により、トレーナーと受験者に自動的にカレンダー招待が送信される
+            // 招待された人のカレンダーには自動的に表示されるため、個別にイベント追加は不要
+            error_log("Calendar invitations sent to trainer and user automatically");
             
             error_log("Calendar event created. Meet URL: " . ($meet_url_generated ?: 'NULL'));
             

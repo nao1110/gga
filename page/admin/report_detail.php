@@ -32,6 +32,7 @@ $stmt = $pdo->prepare("
         r.id,
         r.meeting_date,
         r.status,
+        r.recording_url,
         u.id as user_id,
         u.name as user_name,
         u.email as user_email,
@@ -334,6 +335,38 @@ if ($self_feedback_raw && !empty($self_feedback_raw['comment'])) {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 録画URL入力 -->
+    <div class="section-card">
+      <h2 class="section-title">
+        <i data-lucide="video"></i>
+        録画URL管理（管理者専用）
+      </h2>
+      <form method="POST" action="update_recording_url.php" style="margin-top: 20px;">
+        <input type="hidden" name="reserve_id" value="<?php echo h($reserve_id); ?>">
+        <div class="info-item">
+          <label for="recording_url" style="font-size: 1rem; margin-bottom: 10px; display: block;">Google Meet録画URL</label>
+          <input 
+            type="url" 
+            id="recording_url" 
+            name="recording_url" 
+            value="<?php echo h($reservation['recording_url'] ?? ''); ?>"
+            placeholder="https://drive.google.com/file/d/..."
+            style="width: 100%; padding: 12px; border: 2px solid #FFE0B2; border-radius: 8px; font-size: 1rem;"
+          >
+          <small style="color: #666; display: block; margin-top: 8px;">このURLは受験者のフィードバックページに表示されます</small>
+        </div>
+        <div style="text-align: right; margin-top: 15px;">
+          <button 
+            type="submit" 
+            style="background: #FF9800; color: white; padding: 12px 30px; border: none; border-radius: 25px; font-weight: 600; cursor: pointer; font-size: 1rem;"
+          >
+            <i data-lucide="save" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 5px;"></i>
+            録画URLを保存
+          </button>
+        </div>
+      </form>
     </div>
 
     <!-- トレーナーフィードバック -->

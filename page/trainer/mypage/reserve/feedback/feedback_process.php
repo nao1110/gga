@@ -29,8 +29,14 @@ $trainer_id = $current_user['id'];
 // POSTデータ取得
 $reservation_id = $_POST['reservation_id'] ?? '';
 $attitude_comment = trim($_POST['attitude_comment'] ?? '');
+$attitude_score_1 = intval($_POST['attitude_score_1'] ?? 0);
+$attitude_score_2 = intval($_POST['attitude_score_2'] ?? 0);
 $problem_comment = trim($_POST['problem_comment'] ?? '');
+$problem_score_1 = intval($_POST['problem_score_1'] ?? 0);
+$problem_score_2 = intval($_POST['problem_score_2'] ?? 0);
 $development_comment = trim($_POST['development_comment'] ?? '');
+$development_score_1 = intval($_POST['development_score_1'] ?? 0);
+$development_score_2 = intval($_POST['development_score_2'] ?? 0);
 $next_advice = trim($_POST['next_advice'] ?? '');
 
 // バリデーション
@@ -45,15 +51,33 @@ if (!validateRequired($reservation_id) || !is_numeric($reservation_id)) {
 if (!validateRequired($attitude_comment)) {
     $errors[] = '態度・傾聴（基本的姿勢）のフィードバックを入力してください';
 }
+if ($attitude_score_1 < 1 || $attitude_score_1 > 5) {
+    $errors[] = '態度・傾聴のチェックポイント1のスコアを選択してください';
+}
+if ($attitude_score_2 < 1 || $attitude_score_2 > 5) {
+    $errors[] = '態度・傾聴のチェックポイント2のスコアを選択してください';
+}
 
 // 問題把握のフィードバックチェック
 if (!validateRequired($problem_comment)) {
     $errors[] = '問題把握のフィードバックを入力してください';
 }
+if ($problem_score_1 < 1 || $problem_score_1 > 5) {
+    $errors[] = '問題把握のチェックポイント1のスコアを選択してください';
+}
+if ($problem_score_2 < 1 || $problem_score_2 > 5) {
+    $errors[] = '問題把握のチェックポイント2のスコアを選択してください';
+}
 
 // 具体的展開のフィードバックチェック
 if (!validateRequired($development_comment)) {
     $errors[] = '具体的展開のフィードバックを入力してください';
+}
+if ($development_score_1 < 1 || $development_score_1 > 5) {
+    $errors[] = '具体的展開のチェックポイント1のスコアを選択してください';
+}
+if ($development_score_2 < 1 || $development_score_2 > 5) {
+    $errors[] = '具体的展開のチェックポイント2のスコアを選択してください';
 }
 
 // 次回へのアドバイスチェック
@@ -70,8 +94,14 @@ if (!empty($errors)) {
 // フィードバックデータをJSON形式で作成
 $feedback_json = json_encode([
     'attitude_comment' => $attitude_comment,
+    'attitude_score_1' => $attitude_score_1,
+    'attitude_score_2' => $attitude_score_2,
     'problem_comment' => $problem_comment,
+    'problem_score_1' => $problem_score_1,
+    'problem_score_2' => $problem_score_2,
     'development_comment' => $development_comment,
+    'development_score_1' => $development_score_1,
+    'development_score_2' => $development_score_2,
     'next_advice' => $next_advice
 ], JSON_UNESCAPED_UNICODE);
 

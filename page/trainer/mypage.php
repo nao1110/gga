@@ -42,6 +42,7 @@ $stmt = $pdo->prepare("
         p.age as persona_age,
         p.family_structure as persona_family,
         p.job as persona_job,
+        p.theme as persona_theme,
         p.situation as persona_situation,
         f.id as feedback_id,
         f.created_at as feedback_date,
@@ -69,7 +70,7 @@ function assignPersona($pdo, $user_id, $completed_count) {
     $persona_number = ($completed_count % 3) + 1;
     
     // ペルソナ情報を取得
-    $stmt = $pdo->prepare("SELECT id, persona_name, age, family_structure, job, situation FROM personas WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, persona_name, age, family_structure, job, theme, situation FROM personas WHERE id = ?");
     $stmt->execute([$persona_number]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
@@ -89,6 +90,7 @@ foreach ($all_reservations as $reservation) {
             $reservation['persona_age'] = $persona['age'];
             $reservation['persona_family'] = $persona['family_structure'];
             $reservation['persona_job'] = $persona['job'];
+            $reservation['persona_theme'] = $persona['theme'];
             $reservation['persona_situation'] = $persona['situation'];
         }
     }
@@ -813,6 +815,12 @@ if ($show_all) {
                 <span class="detail-label">業種・職種:</span>
                 <span class="detail-value"><?php echo h($reservation['persona_job']); ?></span>
               </div>
+              <?php if (!empty($reservation['persona_theme'])): ?>
+              <div class="detail-row">
+                <span class="detail-label">相談テーマ:</span>
+                <span class="detail-value" style="color: #FF9800; font-weight: 600;"><?php echo h($reservation['persona_theme']); ?></span>
+              </div>
+              <?php endif; ?>
               <div class="detail-row">
                 <span class="detail-label">相談内容:</span>
                 <span class="detail-value"><?php echo h($reservation['persona_situation']); ?></span>

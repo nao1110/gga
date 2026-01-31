@@ -41,7 +41,7 @@ $stmt = $pdo->prepare("
         r.id,
         r.meeting_date,
         r.meeting_url,
-        r.meeting_recording_url,
+        r.recording_url,
         r.status,
         t.name as trainer_name,
         t.email as trainer_email,
@@ -66,8 +66,14 @@ if (!$reservation) {
 $has_trainer_feedback = !empty($reservation['feedback_comment']);
 $feedback_data = [
     'attitude_comment' => '',
+    'attitude_score_1' => 0,
+    'attitude_score_2' => 0,
     'problem_comment' => '',
+    'problem_score_1' => 0,
+    'problem_score_2' => 0,
     'development_comment' => '',
+    'development_score_1' => 0,
+    'development_score_2' => 0,
     'next_advice' => '',
 ];
 
@@ -75,8 +81,14 @@ if ($has_trainer_feedback) {
     $feedback_json = json_decode($reservation['feedback_comment'], true);
     $feedback_data = [
         'attitude_comment' => $feedback_json['attitude_comment'] ?? '',
+        'attitude_score_1' => $feedback_json['attitude_score_1'] ?? 0,
+        'attitude_score_2' => $feedback_json['attitude_score_2'] ?? 0,
         'problem_comment' => $feedback_json['problem_comment'] ?? '',
+        'problem_score_1' => $feedback_json['problem_score_1'] ?? 0,
+        'problem_score_2' => $feedback_json['problem_score_2'] ?? 0,
         'development_comment' => $feedback_json['development_comment'] ?? '',
+        'development_score_1' => $feedback_json['development_score_1'] ?? 0,
+        'development_score_2' => $feedback_json['development_score_2'] ?? 0,
         'next_advice' => $feedback_json['next_advice'] ?? '',
     ];
 }
@@ -327,7 +339,7 @@ if ($has_self_feedback) {
       </section>
 
       <!-- 面談録画動画 -->
-      <?php if (!empty($reservation['meeting_recording_url'])): ?>
+      <?php if (!empty($reservation['recording_url'])): ?>
       <section class="content-section fade-in">
         <article class="card">
           <div class="card-header">
@@ -348,7 +360,7 @@ if ($has_self_feedback) {
               <p style="color: rgba(255,255,255,0.9); margin-bottom: var(--spacing-lg);">
                 ご自身の面談の様子を振り返り、改善点を見つけることができます
               </p>
-              <a href="<?php echo h($reservation['meeting_recording_url']); ?>" target="_blank" class="btn-secondary" style="background: white; color: #667eea; border: none; padding: var(--spacing-md) var(--spacing-xl); font-weight: bold; display: inline-flex; align-items: center; gap: var(--spacing-xs);">
+              <a href="<?php echo h($reservation['recording_url']); ?>" target="_blank" class="btn-secondary" style="background: white; color: #667eea; border: none; padding: var(--spacing-md) var(--spacing-xl); font-weight: bold; display: inline-flex; align-items: center; gap: var(--spacing-xs);">
                 <i data-lucide="external-link"></i>
                 録画動画を見る
               </a>
@@ -388,15 +400,36 @@ if ($has_self_feedback) {
                 <i data-lucide="ear"></i>
                 1. 態度・傾聴（基本的姿勢）
               </h3>
-              <div class="evaluation-criteria">
-                <p><strong>評価項目：</strong></p>
-                <ul>
-                  <li>受容的・共感的な態度で受験者を迎えることができる</li>
-                  <li>受験者との信頼関係を構築できる</li>
-                  <li>適切な応答技法を用いることができる</li>
-                </ul>
+              <?php if ($feedback_data['attitude_score_1'] > 0 || $feedback_data['attitude_score_2'] > 0): ?>
+              <div class="evaluation-scores" style="display: flex; flex-direction: column; gap: var(--spacing-md); margin-bottom: var(--spacing-md); padding: var(--spacing-md); background: #f8f9fa; border-radius: 8px;">
+                <div class="score-item">
+                  <strong style="color: #2c3e50;">チェックポイント1: 相談者が話しやすい雰囲気（表情・相槌・声のトーン）だったか</strong>
+                  <div style="display: flex; align-items: center; margin-top: 0.5rem;">
+                    <span style="font-size: 1.2rem; font-weight: 600; color: var(--color-primary);">スコア: <?php echo h($feedback_data['attitude_score_1']); ?> / 5</span>
+                    <span style="margin-left: 1rem; color: #666;">
+                      <?php 
+                      $stars = str_repeat('★', $feedback_data['attitude_score_1']) . str_repeat('☆', 5 - $feedback_data['attitude_score_1']);
+                      echo $stars;
+                      ?>
+                    </span>
+                  </div>
+                </div>
+                <div class="score-item">
+                  <strong style="color: #2c3e50;">チェックポイント2: 感情への共感を示し、信頼関係（ラポール）を築けていたか</strong>
+                  <div style="display: flex; align-items: center; margin-top: 0.5rem;">
+                    <span style="font-size: 1.2rem; font-weight: 600; color: var(--color-primary);">スコア: <?php echo h($feedback_data['attitude_score_2']); ?> / 5</span>
+                    <span style="margin-left: 1rem; color: #666;">
+                      <?php 
+                      $stars = str_repeat('★', $feedback_data['attitude_score_2']) . str_repeat('☆', 5 - $feedback_data['attitude_score_2']);
+                      echo $stars;
+                      ?>
+                    </span>
+                  </div>
+                </div>
               </div>
+              <?php endif; ?>
               <div class="feedback-content">
+                <strong>具体的なフィードバック:</strong>
                 <p><?php echo nl2br(h($feedback_data['attitude_comment'])); ?></p>
               </div>
             </div>
@@ -407,15 +440,36 @@ if ($has_self_feedback) {
                 <i data-lucide="search"></i>
                 2. 問題把握
               </h3>
-              <div class="evaluation-criteria">
-                <p><strong>評価項目：</strong></p>
-                <ul>
-                  <li>受験者の主訴を明確にできる</li>
-                  <li>受験者のキャリアに関する経験等を傾聴できる</li>
-                  <li>受験者の真の課題を把握できる</li>
-                </ul>
+              <?php if ($feedback_data['problem_score_1'] > 0 || $feedback_data['problem_score_2'] > 0): ?>
+              <div class="evaluation-scores" style="display: flex; flex-direction: column; gap: var(--spacing-md); margin-bottom: var(--spacing-md); padding: var(--spacing-md); background: #f8f9fa; border-radius: 8px;">
+                <div class="score-item">
+                  <strong style="color: #2c3e50;">チェックポイント1: 相談者が一番言いたかったこと（主訴）をつかめていたか</strong>
+                  <div style="display: flex; align-items: center; margin-top: 0.5rem;">
+                    <span style="font-size: 1.2rem; font-weight: 600; color: var(--color-primary);">スコア: <?php echo h($feedback_data['problem_score_1']); ?> / 5</span>
+                    <span style="margin-left: 1rem; color: #666;">
+                      <?php 
+                      $stars = str_repeat('★', $feedback_data['problem_score_1']) . str_repeat('☆', 5 - $feedback_data['problem_score_1']);
+                      echo $stars;
+                      ?>
+                    </span>
+                  </div>
+                </div>
+                <div class="score-item">
+                  <strong style="color: #2c3e50;">チェックポイント2: CLの自己理解不足や仕事理解不足など、客観的な課題を見つけたか</strong>
+                  <div style="display: flex; align-items: center; margin-top: 0.5rem;">
+                    <span style="font-size: 1.2rem; font-weight: 600; color: var(--color-primary);">スコア: <?php echo h($feedback_data['problem_score_2']); ?> / 5</span>
+                    <span style="margin-left: 1rem; color: #666;">
+                      <?php 
+                      $stars = str_repeat('★', $feedback_data['problem_score_2']) . str_repeat('☆', 5 - $feedback_data['problem_score_2']);
+                      echo $stars;
+                      ?>
+                    </span>
+                  </div>
+                </div>
               </div>
+              <?php endif; ?>
               <div class="feedback-content">
+                <strong>具体的なフィードバック:</strong>
                 <p><?php echo nl2br(h($feedback_data['problem_comment'])); ?></p>
               </div>
             </div>
@@ -426,15 +480,36 @@ if ($has_self_feedback) {
                 <i data-lucide="trending-up"></i>
                 3. 具体的展開
               </h3>
-              <div class="evaluation-criteria">
-                <p><strong>評価項目：</strong></p>
-                <ul>
-                  <li>受験者の目標を明確にできる</li>
-                  <li>受験者の自己理解や、仕事・職業の理解を深めることができる</li>
-                  <li>受験者に対して適切な支援を行うことができる</li>
-                </ul>
+              <?php if ($feedback_data['development_score_1'] > 0 || $feedback_data['development_score_2'] > 0): ?>
+              <div class="evaluation-scores" style="display: flex; flex-direction: column; gap: var(--spacing-md); margin-bottom: var(--spacing-md); padding: var(--spacing-md); background: #f8f9fa; border-radius: 8px;">
+                <div class="score-item">
+                  <strong style="color: #2c3e50;">チェックポイント1: 相談者の「気づき」を促す問いかけや要約があったか</strong>
+                  <div style="display: flex; align-items: center; margin-top: 0.5rem;">
+                    <span style="font-size: 1.2rem; font-weight: 600; color: var(--color-primary);">スコア: <?php echo h($feedback_data['development_score_1']); ?> / 5</span>
+                    <span style="margin-left: 1rem; color: #666;">
+                      <?php 
+                      $stars = str_repeat('★', $feedback_data['development_score_1']) . str_repeat('☆', 5 - $feedback_data['development_score_1']);
+                      echo $stars;
+                      ?>
+                    </span>
+                  </div>
+                </div>
+                <div class="score-item">
+                  <strong style="color: #2c3e50;">チェックポイント2: 目標共有ができ、次の一歩に向けた動機づけができたか</strong>
+                  <div style="display: flex; align-items: center; margin-top: 0.5rem;">
+                    <span style="font-size: 1.2rem; font-weight: 600; color: var(--color-primary);">スコア: <?php echo h($feedback_data['development_score_2']); ?> / 5</span>
+                    <span style="margin-left: 1rem; color: #666;">
+                      <?php 
+                      $stars = str_repeat('★', $feedback_data['development_score_2']) . str_repeat('☆', 5 - $feedback_data['development_score_2']);
+                      echo $stars;
+                      ?>
+                    </span>
+                  </div>
+                </div>
               </div>
+              <?php endif; ?>
               <div class="feedback-content">
+                <strong>具体的なフィードバック:</strong>
                 <p><?php echo nl2br(h($feedback_data['development_comment'])); ?></p>
               </div>
             </div>
