@@ -1,0 +1,56 @@
+# さくらインターネット用 .htaccess
+
+# PHPのバージョン指定（さくらインターネットの場合）
+# PHP 8.2を使用
+AddType application/x-httpd-php .php .phps
+
+# エラーページの設定
+ErrorDocument 404 /error/404.html
+ErrorDocument 500 /error/500.html
+
+# セキュリティ設定
+# ディレクトリ一覧表示を無効化
+Options -Indexes
+
+# .gitファイルへのアクセスを拒否
+<Files ~ "^\.git">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# 設定ファイルへのアクセスを拒否
+<FilesMatch "\.(env|json|sql|md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Google OAuth設定ファイルの保護
+<Files "client_secret_*.json">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# UTF-8エンコーディング
+AddDefaultCharset UTF-8
+
+# 圧縮設定（パフォーマンス向上）
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
+
+# キャッシュ設定
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+</IfModule>
+
+# HTTPS強制（SSL証明書設定後に有効化）
+# <IfModule mod_rewrite.c>
+#     RewriteEngine On
+#     RewriteCond %{HTTPS} off
+#     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+# </IfModule>

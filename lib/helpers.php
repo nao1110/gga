@@ -12,7 +12,12 @@
  * @return void
  */
 function redirect($path) {
-    header("Location: {$path}");
+    // 本番環境のベースURLを取得
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $fullUrl = $protocol . '://' . $host . $path;
+    
+    header("Location: {$fullUrl}");
     exit;
 }
 
